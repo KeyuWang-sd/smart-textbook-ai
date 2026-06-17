@@ -1,0 +1,2647 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎓 智能教材问答与学习辅助平台</title>
+
+<!-- 字体：ZCOOL 有手写感的展示体 + 思源柔黑体风格 -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=ZCOOL+XiaoWei&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
+
+<!-- KaTeX 数学公式渲染 -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"></script>
+
+<style>
+/* ============================================================
+   设计主题 —— 「树屋里的黑板」
+   整体背景：树屋木质墙面的浅褐暖色调
+   主内容区：深色黑板质感，文字如粉笔书写
+   聊天气泡：粉笔黄 vs 粉笔绿，背景和字色强对比
+   ============================================================ */
+
+:root {
+  /* ---- 树屋木墙（外层背景） ---- */
+  --wood-bg:       #c8b08a;
+  --wood-warm:     #d4bfa0;
+  --wood-light:    #e0cfb4;
+  --wood-dark:     #a88965;
+  --wood-border:   #906f50;
+
+  /* ---- 黑板（主内容区） ---- */
+  --board:         #2b3830;
+  --board-deeper:  #1e2822;
+  --board-card:    #313e36;
+  --board-elevated:#3a4840;
+  --board-border:  #4a3c2c;       /* 木框 */
+
+  /* ---- 粉笔文字 ---- */
+  --chalk-white:   #eae5db;
+  --chalk-soft:    #c6c1b8;
+  --chalk-muted:   #9b9690;
+
+  /* ---- 学生气泡：粉笔黄 + 深褐字（强对比） ---- */
+  --user-bubble:   #ffd363;
+  --user-text:     #3b2900;
+
+  /* ---- AI 助教气泡：粉笔薄荷绿 + 深绿字（强对比） ---- */
+  --ai-bubble:     #76ce9c;
+  --ai-text:       #082a16;
+
+  /* ---- 粉笔彩色强调 ---- */
+  --chalk-pink:    #f07a8a;
+  --chalk-blue:    #6eb5e0;
+  --chalk-orange:  #f49b60;
+  --chalk-yellow:  #f5ce5a;
+
+  /* ---- 阴影 ---- */
+  --shadow-sm:     0 1px 4px rgba(0,0,0,0.18), 0 1px 2px rgba(0,0,0,0.12);
+  --shadow-md:     0 4px 16px rgba(0,0,0,0.22), 0 2px 6px rgba(0,0,0,0.14);
+  --shadow-lg:     0 12px 32px rgba(0,0,0,0.28);
+
+  /* ---- 圆角 ---- */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 20px;
+
+  /* ---- 动效 ---- */
+  --ease-out:   cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring:cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* ---- 字体 ---- */
+  --font-display: 'ZCOOL XiaoWei', 'STKaiti', '楷体', KaiTi, serif;
+  --font-ui:      'Nunito', 'PingFang SC', 'Microsoft YaHei', '微软雅黑', sans-serif;
+}
+
+/* ============================================================
+   全局重置
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-ui);
+  color: var(--chalk-white);
+  line-height: 1.75;
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+  /* 树屋木墙背景：暖褐色 + 木纹纹理 */
+  background-color: var(--wood-bg);
+  background-image:
+    /* 宽木条横纹 — 模拟木板拼接 */
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 120px,
+      rgba(168,137,101,0.18) 120px,
+      rgba(168,137,101,0.18) 122px
+    ),
+    /* 竖向细纹理 */
+    repeating-linear-gradient(
+      88deg,
+      transparent,
+      transparent 14px,
+      rgba(144,111,80,0.06) 14px,
+      rgba(144,111,80,0.06) 16px
+    ),
+    /* 暖光从左上洒下 — 模拟树屋窗户透光 */
+    radial-gradient(ellipse at 25% 15%, rgba(240,220,190,0.5) 0%, transparent 50%),
+    /* 暖光从右下补充 */
+    radial-gradient(ellipse at 75% 90%, rgba(168,137,101,0.3) 0%, transparent 50%),
+    /* 颗粒噪点 */
+    url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  /* 四周留出更多空间展示木墙和装饰 */
+  padding: 64px;
+}
+
+/* ============================================================
+   树屋外景装饰 —— 太阳、云朵、小树、花草、萤火虫
+   所有装饰 pointer-events: none，不影响操作
+   ============================================================ */
+
+.树屋装饰 {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+/* ---- ☀️ 太阳：右上角，暖金渐变 + 光晕动画 ---- */
+.太阳 {
+  position: absolute;
+  top: 24px;
+  right: 60px;
+  width: 72px;
+  height: 72px;
+  background: radial-gradient(circle at 45% 40%,
+    #fffde0 0%, #ffec80 18%, #ffd363 45%,
+    #f49b60 75%, transparent 100%);
+  border-radius: 50%;
+  box-shadow:
+    0 0 30px rgba(255,211,99,0.5),
+    0 0 70px rgba(255,190,50,0.3),
+    0 0 120px rgba(255,170,30,0.15);
+  animation: 太阳呼吸 4s ease-in-out infinite;
+}
+@keyframes 太阳呼吸 {
+  0%, 100% { box-shadow: 0 0 30px rgba(255,211,99,0.5), 0 0 70px rgba(255,190,50,0.3), 0 0 120px rgba(255,170,30,0.15); }
+  50%      { box-shadow: 0 0 45px rgba(255,211,99,0.65), 0 0 95px rgba(255,190,50,0.4), 0 0 150px rgba(255,170,30,0.22); }
+}
+
+/* ---- 太阳光线 ---- */
+.太阳光线 {
+  position: absolute;
+  top: 44px;
+  right: 30px;
+  width: 90px;
+  height: 90px;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg, rgba(255,240,180,0.12) 5deg, transparent 10deg,
+    transparent 30deg, rgba(255,240,180,0.08) 35deg, transparent 40deg,
+    transparent 60deg, rgba(255,240,180,0.1) 65deg, transparent 70deg,
+    transparent 90deg, rgba(255,240,180,0.12) 95deg, transparent 100deg,
+    transparent 120deg, rgba(255,240,180,0.07) 125deg, transparent 130deg,
+    transparent 155deg, rgba(255,240,180,0.1) 160deg, transparent 165deg,
+    transparent 200deg, rgba(255,240,180,0.12) 205deg, transparent 210deg,
+    transparent 240deg, rgba(255,240,180,0.08) 245deg, transparent 250deg,
+    transparent 280deg, rgba(255,240,180,0.1) 285deg, transparent 295deg,
+    transparent 320deg, rgba(255,240,180,0.09) 325deg, transparent 330deg,
+    transparent 345deg, rgba(255,240,180,0.06) 350deg, transparent 355deg
+  );
+  border-radius: 50%;
+  animation: 光线旋转 20s linear infinite;
+}
+@keyframes 光线旋转 {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ---- ☁️ 云朵：左上区域，柔和飘浮 ---- */
+.云 {
+  position: absolute;
+  background: rgba(255,255,255,0.55);
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(255,255,255,0.2);
+  animation: 云飘 float 6s ease-in-out infinite;
+}
+.云::before, .云::after {
+  content: '';
+  position: absolute;
+  background: inherit;
+  border-radius: 50%;
+}
+.云1 {
+  top: 80px; left: 40px;
+  width: 60px; height: 28px;
+  border-radius: 28px;
+  animation-delay: 0s;
+}
+.云1::before { width: 32px; height: 32px; top: -18px; left: 12px; }
+.云1::after  { width: 24px; height: 24px; top: -10px; left: 34px; }
+
+.云2 {
+  top: 130px; left: 120px;
+  width: 48px; height: 22px;
+  border-radius: 22px;
+  animation-delay: 1.5s;
+  opacity: 0.7;
+}
+.云2::before { width: 26px; height: 26px; top: -14px; left: 8px; }
+.云2::after  { width: 20px; height: 20px; top: -8px; left: 28px; }
+
+.云3 {
+  top: 55px; left: 200px;
+  width: 70px; height: 30px;
+  border-radius: 30px;
+  animation-delay: 3s;
+  opacity: 0.5;
+}
+.云3::before { width: 36px; height: 36px; top: -20px; left: 14px; }
+.云3::after  { width: 26px; height: 26px; top: -11px; left: 40px; }
+
+@keyframes 云飘 {
+  0%, 100% { transform: translateX(0); }
+  50%      { transform: translateX(18px); }
+}
+
+/* ---- 🌲 小树：底部两侧 ---- */
+.小树 {
+  position: absolute;
+  bottom: 8px;
+  font-size: 48px;
+  filter: drop-shadow(2px 3px 4px rgba(60,30,10,0.3));
+  animation: 树摇 4s ease-in-out infinite;
+  line-height: 1;
+}
+.小树左  { left: 28px; }
+.小树左2 { left: 90px; font-size: 32px; bottom: 4px; animation-delay: 0.6s; }
+.小树右  { right: 28px; }
+.小树右2 { right: 90px; font-size: 32px; bottom: 4px; animation-delay: 0.6s; }
+@keyframes 树摇 {
+  0%, 100% { transform: rotate(0deg); }
+  25%      { transform: rotate(1.5deg); }
+  75%      { transform: rotate(-1deg); }
+}
+
+/* ---- 🌸 花朵：散落在底部 ---- */
+.花丛 {
+  position: absolute;
+  bottom: 6px;
+  display: flex;
+  gap: 3px;
+  font-size: 16px;
+  animation: 花摇 3s ease-in-out infinite;
+}
+.花丛左  { left: 90px; bottom: 10px; animation-delay: 0s; }
+.花丛左2 { left: 180px; bottom: 4px; animation-delay: 0.8s; }
+.花丛右  { right: 100px; bottom: 10px; animation-delay: 1.6s; }
+.花丛右2 { right: 190px; bottom: 5px; animation-delay: 2.2s; }
+.花丛底  { left: 50%; transform: translateX(-50%); bottom: 2px; animation-delay: 1.2s; }
+@keyframes 花摇 {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-3px); }
+}
+
+/* ---- 🌿 藤蔓/叶片挂角 ---- */
+.藤蔓 {
+  position: absolute;
+  font-size: 22px;
+  opacity: 0.7;
+  animation: 藤蔓摇 5s ease-in-out infinite;
+}
+.藤蔓 tl { top: 4px;  left: 6px;  animation-delay: 0s; }
+.藤蔓 tr { top: 4px;  right: 6px; animation-delay: 1s; }
+.藤蔓 bl { bottom: 70px; left: 6px;  animation-delay: 2s; }
+.藤蔓 br { bottom: 70px; right: 6px; animation-delay: 3s; }
+@keyframes 藤蔓摇 {
+  0%, 100% { transform: rotate(0deg) translateY(0); }
+  33%      { transform: rotate(3deg) translateY(-2px); }
+  66%      { transform: rotate(-2deg) translateY(1px); }
+}
+
+/* ---- 🍃 飘落叶子 ---- */
+.落叶 {
+  position: absolute;
+  font-size: 14px;
+  opacity: 0.6;
+  animation: 落叶飘 16s ease-in-out infinite;
+}
+@keyframes 落叶飘 {
+  0%   { transform: translateY(-20px) translateX(0) rotate(0deg); opacity: 0; }
+  10%  { opacity: 0.6; }
+  90%  { opacity: 0.5; }
+  100% { transform: translateY(100vh) translateX(40px) rotate(180deg); opacity: 0; }
+}
+
+/* ---- ✨ 萤火虫：小光点飘动 ---- */
+.萤火虫 {
+  position: absolute;
+  width: 4px; height: 4px;
+  background: #ffe8a0;
+  border-radius: 50%;
+  box-shadow: 0 0 6px 2px rgba(255,232,140,0.6);
+  animation: 萤火虫飞 6s ease-in-out infinite;
+}
+.萤火虫:nth-child(1) { top: 55%; left: 5%; animation-delay: 0s; }
+.萤火虫:nth-child(2) { top: 70%; left: 92%; animation-delay: 1.5s; }
+.萤火虫:nth-child(3) { top: 40%; left: 3%; animation-delay: 3s; }
+.萤火虫:nth-child(4) { top: 60%; left: 95%; animation-delay: 4.5s; }
+@keyframes 萤火虫飞 {
+  0%, 100% { transform: translate(0, 0); opacity: 0.3; }
+  25%      { transform: translate(15px, -20px); opacity: 0.9; }
+  50%      { transform: translate(-10px, -10px); opacity: 0.4; }
+  75%      { transform: translate(8px, -25px); opacity: 0.8; }
+}
+
+/* ---- 🦋 蝴蝶：扑扇翅膀 + 自由飞行 ---- */
+.蝴蝶 {
+  position: absolute;
+  font-size: 30px;
+  pointer-events: none;
+  top: 32%;
+  left: 8%;
+  animation: 蝴蝶飞 7s ease-in-out infinite;
+  filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.15));
+  z-index: 2;
+}
+@keyframes 蝴蝶飞 {
+  0%   { transform: translate(0, 0) scaleX(1); }
+  5%   { transform: translate(20px, -15px) scaleX(0.35); }
+  10%  { transform: translate(40px, -5px) scaleX(1); }
+  15%  { transform: translate(55px, -18px) scaleX(0.35); }
+  20%  { transform: translate(70px, -2px) scaleX(1); }
+  25%  { transform: translate(60px, 10px) scaleX(0.35); }
+  30%  { transform: translate(35px, 15px) scaleX(1); }
+  35%  { transform: translate(10px, 5px) scaleX(0.35); }
+  40%  { transform: translate(-10px, -10px) scaleX(1); }
+  45%  { transform: translate(-25px, -20px) scaleX(0.35); }
+  50%  { transform: translate(-15px, -8px) scaleX(1); }
+  55%  { transform: translate(10px, -22px) scaleX(0.35); }
+  60%  { transform: translate(30px, -10px) scaleX(1); }
+  65%  { transform: translate(45px, 5px) scaleX(0.35); }
+  70%  { transform: translate(50px, 12px) scaleX(1); }
+  75%  { transform: translate(25px, 18px) scaleX(0.35); }
+  80%  { transform: translate(5px, 8px) scaleX(1); }
+  85%  { transform: translate(-8px, -5px) scaleX(0.35); }
+  90%  { transform: translate(0px, -12px) scaleX(1); }
+  95%  { transform: translate(8px, -3px) scaleX(0.35); }
+  100% { transform: translate(0, 0) scaleX(1); }
+}
+
+/* ---- 🐝 蜜蜂：嗡嗡嗡 zigzag 飞行 ---- */
+.蜜蜂 {
+  position: absolute;
+  font-size: 24px;
+  pointer-events: none;
+  top: 28%;
+  right: 6%;
+  animation: 蜜蜂飞 5s ease-in-out infinite;
+  filter: drop-shadow(1px 1px 2px rgba(0,0,0,0.15));
+  z-index: 2;
+}
+@keyframes 蜜蜂飞 {
+  0%   { transform: translate(0, 0) rotate(0deg); }
+  10%  { transform: translate(-18px, -10px) rotate(-5deg); }
+  20%  { transform: translate(10px, -20px) rotate(3deg); }
+  30%  { transform: translate(-12px, -8px) rotate(-2deg); }
+  40%  { transform: translate(15px, -16px) rotate(5deg); }
+  50%  { transform: translate(-8px, -4px) rotate(0deg); }
+  60%  { transform: translate(20px, -14px) rotate(-3deg); }
+  70%  { transform: translate(-15px, -6px) rotate(2deg); }
+  80%  { transform: translate(8px, -10px) rotate(-4deg); }
+  90%  { transform: translate(-5px, -2px) rotate(1deg); }
+  100% { transform: translate(0, 0) rotate(0deg); }
+}
+
+/* ---- 🌱 底部草地渐变 ---- */
+body::after {
+  content: '';
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: 60px;
+  pointer-events: none;
+  z-index: 0;
+  background: linear-gradient(to top,
+    rgba(90,130,60,0.22) 0%,
+    rgba(120,160,80,0.10) 30%,
+    transparent 100%
+  );
+}
+
+/* ============================================================
+   布局
+   ============================================================ */
+.app-container {
+  display: flex;
+  width: 100%;
+  max-width: 1200px;
+  height: calc(100vh - 128px);
+  /* 经典 margin auto 居中 */
+  margin: 0 auto;
+  position: relative;
+  z-index: 1;
+  /* 黑板底色 */
+  background: var(--board);
+  /* 黑板外框 — 四层木框 */
+  border-style: solid;
+  border-color:
+    var(--wood-border)
+    var(--wood-dark)
+    var(--wood-light)
+    var(--wood-dark);
+  border-width: 8px;
+  box-shadow:
+    inset 0 0 0 4px #7a5c3e,
+    0 0 0 6px #8a6d50,
+    0 8px 32px rgba(60, 30, 10, 0.35);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+/* ---- 侧边栏：黑板左侧的粉笔槽/工具架 ---- */
+.sidebar {
+  width: 300px;
+  min-width: 300px;
+  background: var(--board-deeper);
+  border-right: 2px solid var(--board-border);
+  padding: 28px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  z-index: 10;
+  transition: transform 0.35s var(--ease-out);
+  overflow-y: auto;
+  /* 木纹边缘 */
+  box-shadow: 2px 0 12px rgba(0,0,0,0.25);
+}
+
+/* 侧边栏头部 */
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sidebar-logo {
+  width: 42px; height: 42px;
+  background: linear-gradient(135deg, var(--chalk-pink), var(--chalk-orange));
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem;
+  color: white;
+  box-shadow: 0 2px 10px rgba(240,122,138,0.35);
+}
+
+.sidebar-title {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--chalk-white);
+  letter-spacing: 0.02em;
+}
+
+/* 侧边栏区块 */
+.sidebar-section { display: flex; flex-direction: column; gap: 8px; }
+
+.sidebar-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--chalk-muted);
+  padding-left: 4px;
+}
+
+/* 侧边栏下拉框和输入框 */
+.sidebar select,
+.sidebar input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1.5px solid #4a5c50;
+  border-radius: var(--radius-md);
+  font-family: var(--font-ui);
+  font-size: 0.9rem;
+  color: var(--chalk-white);
+  background: var(--board);
+  transition: all 0.2s var(--ease-out);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.sidebar select {
+  background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5l5 5 5-5' stroke='%23c6c1b8' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
+}
+
+.sidebar select:focus,
+.sidebar input:focus {
+  outline: none;
+  border-color: var(--chalk-blue);
+  box-shadow: 0 0 0 3px rgba(110,181,224,0.2);
+}
+
+/* 滑块样式 */
+.sidebar input[type="range"] {
+  appearance: none; -webkit-appearance: none;
+  height: 6px;
+  background: #4a5c50;
+  border-radius: 3px;
+  padding: 0; border: none;
+}
+.sidebar input[type="range"]::-webkit-slider-thumb {
+  appearance: none; -webkit-appearance: none;
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: var(--chalk-yellow);
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(245,206,90,0.4);
+  transition: transform 0.15s var(--ease-spring);
+}
+.sidebar input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.15); }
+
+.range-info {
+  display: flex; justify-content: space-between;
+  font-size: 0.75rem; color: var(--chalk-muted);
+}
+
+/* 分隔线 */
+.sidebar-divider {
+  height: 1px;
+  background: linear-gradient(to right, transparent, #4a5c50, transparent);
+  margin: 2px 0;
+}
+
+/* 标签导航 */
+.tab-nav { display: flex; flex-direction: column; gap: 2px; }
+
+.tab-btn {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px;
+  border: none; border-radius: var(--radius-md);
+  background: transparent;
+  font-family: var(--font-ui); font-size: 0.9rem; font-weight: 600;
+  color: var(--chalk-soft);
+  cursor: pointer;
+  transition: all 0.2s var(--ease-out);
+  text-align: left;
+}
+
+.tab-btn:hover { background: var(--board); color: var(--chalk-white); }
+
+.tab-btn.active {
+  background: var(--board-card);
+  color: var(--chalk-yellow);
+  font-weight: 700;
+}
+
+.tab-icon { font-size: 1.2rem; width: 28px; text-align: center; flex-shrink: 0; }
+
+/* 侧边栏底部连接状态 */
+.sidebar-status {
+  margin-top: auto;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  background: var(--board);
+  font-size: 0.8rem;
+  display: flex; align-items: center; gap: 8px;
+}
+
+.status-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.status-dot.online  { background: #5cc98a; box-shadow: 0 0 8px rgba(92,201,138,0.5); }
+.status-dot.offline { background: var(--chalk-pink); box-shadow: 0 0 8px rgba(240,122,138,0.5); }
+
+/* 移动端菜单按钮 */
+.menu-toggle {
+  display: none;
+  position: fixed; top: 20px; left: 20px; z-index: 100;
+  width: 44px; height: 44px;
+  border-radius: var(--radius-md);
+  border: 2px solid var(--wood-border);
+  background: var(--wood-light);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  align-items: center; justify-content: center;
+  font-size: 1.3rem;
+  color: var(--wood-dark);
+}
+
+/* ---- 主内容区（黑板主体） ---- */
+.main-content {
+  flex: 1;
+  background: var(--board);
+  padding: 40px 48px;
+  overflow-y: auto;
+  /* 黑板内边缘粉笔灰效果 */
+  box-shadow: inset 0 0 80px rgba(0,0,0,0.2);
+  /* 黑板纹理 */
+  background-image:
+    radial-gradient(ellipse at 50% 50%, rgba(255,255,255,0.015) 0%, transparent 70%),
+    url("data:image/svg+xml,%3Csvg width='100' height='100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.2' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)' opacity='0.025'/%3E%3C/svg%3E");
+}
+
+/* 页面标题 */
+.page-header { margin-bottom: 32px; }
+
+.page-title {
+  font-family: var(--font-display);
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: var(--chalk-white);
+  letter-spacing: 0.04em;
+  line-height: 1.3;
+  /* 粉笔字质感 */
+  text-shadow: 0 1px 2px rgba(0,0,0,0.3);
+}
+
+.page-subtitle {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  color: var(--chalk-soft);
+  margin-top: 6px;
+  opacity: 0.8;
+}
+
+/* ---- 标签页切换 ---- */
+.tab-panel { display: none; animation: 粉笔淡入 0.4s var(--ease-out); }
+.tab-panel.active { display: block; }
+/* 文档面板：固定高度，内部滚动不撑开页面 */
+#panel-documents { height: 100%; overflow: hidden; }
+
+@keyframes 粉笔淡入 {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ============================================================
+   数学公式 (KaTeX) —— 黑板粉笔风格
+   ============================================================ */
+
+/* 行内公式 — 与正文融为一体 */
+.katex {
+  font-size: 1.05em !important;
+}
+
+/* 块级公式 — 居中展示，粉笔框突出 */
+.katex-display {
+  margin: 14px 0 !important;
+  padding: 8px 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+.katex-display > .katex {
+  font-size: 1.18em !important;
+}
+
+/* 粉笔色：公式中字母/数字用粉笔白，算符用粉笔黄 */
+.katex .mord,
+.katex .mbin,
+.katex .mrel,
+.katex .mopen,
+.katex .mclose,
+.katex .mpunct,
+.katex .minner {
+  color: var(--chalk-white);
+}
+
+/* 分数字、指数、上下标 — 粉笔蓝 */
+.katex .mfrac .mord,
+.katex .msupsub .mord {
+  color: var(--chalk-blue);
+}
+
+/* 算符：± × ÷ √ — 粉笔橙 */
+.katex .mbin,
+.katex .mop {
+  color: var(--chalk-orange);
+}
+
+/* 关系符：= < > ≤ ≥ ≠ — 粉笔黄提亮 */
+.katex .mrel {
+  color: var(--chalk-yellow);
+}
+
+/* 分数线和根号线 — 粉笔白 */
+.katex .frac-line,
+.katex .sqrt-line {
+  border-color: var(--chalk-white) !important;
+}
+
+.katex .overline,
+.katex .underline {
+  border-color: var(--chalk-soft) !important;
+}
+
+/* ============================================================
+   智能问答面板
+   ============================================================ */
+.chat-container {
+  display: flex; flex-direction: column; gap: 20px;
+}
+
+.chat-messages {
+  display: flex; flex-direction: column; gap: 16px;
+  min-height: 320px;
+}
+
+/* 聊天气泡 —— 重点：背景与文字强对比 */
+.chat-bubble {
+  max-width: 82%;
+  padding: 18px 24px;
+  border-radius: var(--radius-lg);
+  font-size: 0.95rem;
+  line-height: 1.8;
+  position: relative;
+  animation: 粉笔弹出 0.35s var(--ease-spring);
+  font-weight: 500;
+}
+
+@keyframes 粉笔弹出 {
+  from { opacity: 0; transform: scale(0.92) translateY(10px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* 学生气泡：粉笔黄底 + 深褐字 — 暖而醒目 */
+.chat-bubble.user {
+  align-self: flex-end;
+  background: var(--user-bubble);
+  color: var(--user-text);
+  border-bottom-right-radius: var(--radius-sm);
+  box-shadow: 0 2px 12px rgba(255,211,99,0.25);
+}
+
+/* AI 助教气泡：粉笔绿底 + 深绿字 — 清晰清爽 */
+.chat-bubble.assistant {
+  align-self: flex-start;
+  background: var(--ai-bubble);
+  color: var(--ai-text);
+  border-bottom-left-radius: var(--radius-sm);
+  box-shadow: 0 2px 12px rgba(118,206,156,0.2);
+}
+
+/* 气泡内的角色标签 */
+.chat-bubble-label {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 8px;
+  opacity: 0.7;
+}
+
+/* 引用来源区域 */
+.chat-sources {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px dashed rgba(0,0,0,0.15);
+}
+
+.source-item {
+  background: rgba(0,0,0,0.08);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  margin-top: 8px;
+  font-size: 0.8rem;
+  border-left: 3px solid rgba(0,0,0,0.25);
+}
+.source-item .source-file   { font-weight: 700; }
+.source-item .source-chapter { font-weight: 600; opacity: 0.8; }
+
+/* 输入区域 — 黑板底部的粉笔槽 */
+.chat-input-area {
+  display: flex; gap: 12px;
+  position: sticky; bottom: 0;
+  background: linear-gradient(to top, var(--board) 60%, transparent);
+  padding: 20px 0 0;
+}
+
+.chat-input {
+  flex: 1;
+  padding: 14px 22px;
+  border: 2px solid #4a5c50;
+  border-radius: 50px;
+  font-family: var(--font-ui);
+  font-size: 0.95rem;
+  color: var(--chalk-white);
+  background: var(--board-card);
+  transition: all 0.25s var(--ease-out);
+  box-shadow: var(--shadow-sm);
+}
+
+.chat-input:focus {
+  outline: none;
+  border-color: var(--chalk-yellow);
+  box-shadow: 0 0 0 4px rgba(245,206,90,0.15), var(--shadow-md);
+}
+
+.chat-input::placeholder { color: var(--chalk-muted); font-style: italic; }
+
+/* 发送按钮 — 彩色粉笔 */
+.chat-send-btn {
+  width: 50px; height: 50px;
+  border-radius: 50%;
+  border: none;
+  background: var(--chalk-pink);
+  color: white;
+  font-size: 1.3rem;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(240,122,138,0.4);
+  transition: all 0.2s var(--ease-spring);
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.chat-send-btn:hover {
+  transform: scale(1.07);
+  box-shadow: 0 6px 22px rgba(240,122,138,0.55);
+}
+.chat-send-btn:active   { transform: scale(0.94); }
+.chat-send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+/* 输入中动画 — 三个粉笔点 */
+.typing-indicator {
+  align-self: flex-start;
+  padding: 14px 22px;
+  background: var(--board-card);
+  border-radius: var(--radius-lg);
+  border-bottom-left-radius: var(--radius-sm);
+  display: flex; gap: 6px;
+}
+.typing-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--chalk-soft);
+  animation: 粉笔跳动 1.2s infinite;
+}
+.typing-dot:nth-child(2) { animation-delay: 0.15s; }
+.typing-dot:nth-child(3) { animation-delay: 0.3s; }
+
+@keyframes 粉笔跳动 {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.35; }
+  30% { transform: translateY(-8px); opacity: 1; }
+}
+
+/* 空聊天状态 */
+.chat-empty {
+  text-align: center;
+  padding: 70px 20px;
+  color: var(--chalk-muted);
+}
+.chat-empty-icon   { font-size: 3.5rem; margin-bottom: 16px; opacity: 0.5; }
+.chat-empty-text   {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  opacity: 0.7;
+}
+
+/* ============================================================
+   试题生成面板
+   ============================================================ */
+.exam-form {
+  display: flex; flex-direction: column; gap: 20px;
+}
+
+.form-row {
+  display: flex; gap: 16px;
+}
+
+.form-group {
+  display: flex; flex-direction: column; gap: 6px;
+  flex: 1;
+}
+
+.form-label {
+  font-size: 0.75rem; font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--chalk-muted);
+}
+
+.form-group select,
+.form-group input[type="number"] {
+  padding: 10px 14px;
+  border: 1.5px solid #4a5c50;
+  border-radius: var(--radius-md);
+  font-family: var(--font-ui);
+  font-size: 0.9rem;
+  background: var(--board-card);
+  color: var(--chalk-white);
+  transition: all 0.2s var(--ease-out);
+}
+
+.form-group select:focus,
+.form-group input:focus {
+  outline: none;
+  border-color: var(--chalk-blue);
+  box-shadow: 0 0 0 3px rgba(110,181,224,0.2);
+}
+
+/* 难度选择 — 粉笔色块 */
+.difficulty-slider { display: flex; gap: 4px; }
+
+.difficulty-option {
+  flex: 1;
+  padding: 10px 8px;
+  border: 1.5px solid #4a5c50;
+  border-radius: var(--radius-md);
+  text-align: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: var(--board-card);
+  color: var(--chalk-soft);
+  transition: all 0.2s var(--ease-out);
+}
+.difficulty-option:hover { background: var(--board-elevated); color: var(--chalk-white); }
+.difficulty-option.selected {
+  background: var(--chalk-blue);
+  border-color: var(--chalk-blue);
+  color: #0a1a28;
+  font-weight: 700;
+}
+
+/* 教材内容输入框 */
+.context-textarea {
+  width: 100%;
+  min-height: 180px;
+  padding: 16px 20px;
+  border: 1.5px solid #4a5c50;
+  border-radius: var(--radius-lg);
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  line-height: 1.8;
+  color: var(--chalk-white);
+  background: var(--board-card);
+  resize: vertical;
+  transition: all 0.25s var(--ease-out);
+}
+.context-textarea:focus {
+  outline: none;
+  border-color: var(--chalk-blue);
+  box-shadow: 0 0 0 4px rgba(110,181,224,0.15);
+}
+.context-textarea::placeholder { color: var(--chalk-muted); }
+
+/* 生成按钮 — 白色粉笔 */
+.生成按钮 {
+  align-self: flex-start;
+  padding: 14px 36px;
+  border: none;
+  border-radius: 50px;
+  background: var(--chalk-white);
+  color: #1e2822;
+  font-family: var(--font-ui);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: all 0.25s var(--ease-spring);
+  box-shadow: var(--shadow-md);
+}
+.生成按钮:hover {
+  background: var(--chalk-yellow);
+  box-shadow: 0 8px 28px rgba(245,206,90,0.35);
+  transform: translateY(-2px);
+}
+.生成按钮:active   { transform: scale(0.96); }
+.生成按钮:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* 生成的试题卡片 */
+.question-card {
+  background: var(--board-card);
+  border: 1.5px solid #4a5c50;
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  margin-top: 16px;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.3s var(--ease-out);
+  animation: 粉笔淡入 0.4s var(--ease-out);
+}
+.question-card:hover { border-color: var(--chalk-blue); box-shadow: var(--shadow-md); }
+
+.question-number {
+  font-size: 0.7rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--chalk-orange);
+  margin-bottom: 4px;
+}
+
+.question-text {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.75;
+  color: var(--chalk-white);
+  margin-bottom: 12px;
+}
+
+.question-option {
+  padding: 7px 0 7px 14px;
+  font-size: 0.9rem;
+  color: var(--chalk-soft);
+  border-left: 2px solid transparent;
+  transition: all 0.15s var(--ease-out);
+}
+.question-option:hover {
+  border-left-color: var(--chalk-yellow);
+  color: var(--chalk-white);
+}
+
+/* 答案展开区 */
+.answer-reveal {
+  margin-top: 16px;
+  padding: 14px 18px;
+  background: var(--board);
+  border-radius: var(--radius-md);
+  border-left: 4px solid var(--chalk-green, #5cc98a);
+  cursor: pointer;
+}
+.answer-reveal summary {
+  font-weight: 700;
+  color: var(--chalk-green, #5cc98a);
+  font-size: 0.85rem; cursor: pointer;
+}
+.answer-text      { margin-top: 8px; font-size: 0.9rem; color: var(--chalk-white); line-height: 1.7; }
+.explanation-text { margin-top: 8px; font-size: 0.85rem; color: var(--chalk-soft); }
+
+/* ============================================================
+   错题分析面板
+   ============================================================ */
+.analysis-layout { display: flex; flex-direction: column; gap: 24px; }
+
+.add-mistake-row {
+  display: flex; gap: 12px; align-items: flex-end;
+}
+.add-mistake-row .form-group:first-child { flex: 2.5; }
+.add-mistake-row .form-group:last-child  { flex: 1; }
+
+/* 添加按钮 */
+.添加按钮 {
+  padding: 10px 22px;
+  border: 2px solid var(--chalk-blue);
+  border-radius: 50px;
+  background: transparent;
+  color: var(--chalk-blue);
+  font-family: var(--font-ui);
+  font-size: 0.85rem; font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s var(--ease-spring);
+  white-space: nowrap;
+}
+.添加按钮:hover {
+  background: var(--chalk-blue);
+  color: #0a1a28;
+}
+
+/* 错题列表 */
+.mistake-list { display: flex; flex-direction: column; gap: 8px; }
+
+.mistake-item {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 18px;
+  background: var(--board-card);
+  border: 1.5px solid #4a5c50;
+  border-radius: var(--radius-md);
+  font-size: 0.9rem;
+  animation: 粉笔淡入 0.3s var(--ease-out);
+}
+.mistake-item-info { display: flex; gap: 16px; align-items: center; }
+.mistake-kp { font-weight: 700; color: var(--chalk-white); }
+
+.mistake-diff {
+  font-size: 0.72rem; padding: 4px 12px;
+  border-radius: 50px; font-weight: 700;
+}
+
+/* 难度标签 — 粉笔色 */
+.diff-基础 { background: rgba(118,206,156,0.25); color: #76ce9c; }
+.diff-中等 { background: rgba(245,206,90,0.25);  color: #f5ce5a; }
+.diff-困难 { background: rgba(240,122,138,0.25); color: #f07a8a; }
+
+.mistake-remove-btn {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--chalk-muted);
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.2s var(--ease-out);
+  display: flex; align-items: center; justify-content: center;
+}
+.mistake-remove-btn:hover {
+  background: rgba(240,122,138,0.2);
+  color: var(--chalk-pink);
+}
+
+/* 分析按钮 — 粉色粉笔 */
+.分析按钮 {
+  align-self: flex-start;
+  padding: 14px 36px;
+  border: none;
+  border-radius: 50px;
+  background: var(--chalk-pink);
+  color: white;
+  font-family: var(--font-ui);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: all 0.25s var(--ease-spring);
+  box-shadow: 0 4px 16px rgba(240,122,138,0.35);
+}
+.分析按钮:hover {
+  box-shadow: 0 8px 28px rgba(240,122,138,0.5);
+  transform: translateY(-2px);
+}
+.分析按钮:active   { transform: scale(0.96); }
+.分析按钮:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* 分析结果卡片 */
+.analysis-results { display: flex; flex-direction: column; gap: 20px; }
+
+.result-card {
+  background: var(--board-card);
+  border: 1.5px solid #4a5c50;
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+  animation: 粉笔淡入 0.45s var(--ease-out);
+}
+
+.result-card-title {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--chalk-white);
+  margin-bottom: 16px;
+}
+
+/* 薄弱点排行 */
+.weak-point-row {
+  display: flex; align-items: center; gap: 14px;
+  padding: 10px 0;
+}
+.weak-point-rank {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--board);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.8rem; font-weight: 800;
+  color: var(--chalk-soft);
+  flex-shrink: 0;
+}
+.weak-point-name { flex: 1; font-weight: 600; color: var(--chalk-white); }
+
+.weak-point-bar {
+  height: 8px;
+  background: #4a5c50;
+  border-radius: 4px;
+  overflow: hidden;
+  flex: 2;
+}
+.weak-point-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: linear-gradient(90deg, var(--chalk-yellow), var(--chalk-orange));
+  transition: width 0.6s var(--ease-out);
+}
+.weak-point-count {
+  font-size: 0.8rem; font-weight: 700;
+  color: var(--chalk-orange);
+  min-width: 50px; text-align: right;
+}
+
+/* 建议卡片 — 黄色高亮 */
+.suggestion-card {
+  background: rgba(245,206,90,0.12);
+  border: 1.5px solid rgba(245,206,90,0.3);
+  border-radius: var(--radius-lg);
+  padding: 20px 24px;
+  font-size: 0.95rem;
+  line-height: 1.8;
+  color: var(--chalk-white);
+}
+.suggestion-card::before {
+  content: '💡 复习建议';
+  display: block;
+  font-weight: 800;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--chalk-yellow);
+  margin-bottom: 8px;
+}
+
+/* 刷新/清空按钮 */
+.辅助按钮 {
+  padding: 8px 22px;
+  border: 1.5px solid #4a5c50;
+  border-radius: 50px;
+  background: var(--board-card);
+  color: var(--chalk-soft);
+  font-family: var(--font-ui);
+  font-size: 0.85rem; font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s var(--ease-out);
+  margin-top: 8px;
+}
+.辅助按钮:hover { background: var(--board-elevated); border-color: var(--chalk-muted); color: var(--chalk-white); }
+
+/* ============================================================
+   文档管理面板
+   ============================================================ */
+.doc-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 28px;
+  height: 100%;
+  overflow: hidden;
+}
+/* 左侧上传栏：始终可见 */
+.上传栏 {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  min-height: 0;
+}
+/* 右侧文档列表容器 */
+.文档列表容器 {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.doc-section-title {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--chalk-white);
+  margin-bottom: 16px;
+  flex-shrink: 0;
+}
+
+/* 上传区域 — 黑板上的虚线框 */
+.upload-zone {
+  background: var(--board-card);
+  border: 2px dashed #5a6c60;
+  border-radius: var(--radius-lg);
+  padding: 40px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.25s var(--ease-out);
+  position: relative;
+}
+.upload-zone:hover,
+.upload-zone.dragover {
+  border-color: var(--chalk-yellow);
+  background: rgba(245,206,90,0.06);
+}
+.upload-zone-icon {
+  font-size: 2.5rem;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+.upload-zone-text {
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  color: var(--chalk-soft);
+}
+.upload-zone-hint {
+  font-size: 0.75rem;
+  color: var(--chalk-muted);
+  margin-top: 6px;
+}
+.upload-zone input[type="file"] {
+  position: absolute; inset: 0;
+  opacity: 0; cursor: pointer;
+}
+
+/* 文档类型选择器 */
+.doc-type-select {
+  margin-top: 14px;
+  display: flex; gap: 8px;
+  flex-wrap: wrap;
+}
+.doc-type-chip {
+  padding: 7px 16px;
+  border: 1.5px solid #4a5c50;
+  border-radius: 50px;
+  font-size: 0.8rem; font-weight: 600;
+  cursor: pointer;
+  background: var(--board-card);
+  color: var(--chalk-soft);
+  transition: all 0.2s var(--ease-out);
+}
+.doc-type-chip:hover { background: var(--board-elevated); }
+.doc-type-chip.selected {
+  background: rgba(110,181,224,0.2);
+  border-color: var(--chalk-blue);
+  color: var(--chalk-blue);
+}
+
+/* 上传进度条 */
+.upload-progress {
+  margin-top: 12px;
+  height: 4px;
+  background: #4a5c50;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.upload-progress-bar {
+  height: 100%;
+  background: var(--chalk-yellow);
+  border-radius: 2px;
+  transition: width 0.3s var(--ease-out);
+}
+
+/* 文档列表 */
+.doc-list {
+  display: flex; flex-direction: column; gap: 10px;
+  overflow-y: auto;
+  flex: 1;
+  min-height: 0;
+  padding-right: 4px;
+}
+
+.doc-list-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 18px;
+  background: var(--board-card);
+  border: 1.5px solid #4a5c50;
+  border-radius: var(--radius-md);
+  transition: all 0.2s var(--ease-out);
+  animation: 粉笔淡入 0.3s var(--ease-out);
+}
+.doc-list-item:hover { border-color: var(--chalk-muted); box-shadow: var(--shadow-sm); }
+
+/* 拖拽排序 */
+.doc-list-item {
+  cursor: grab;
+  user-select: none;
+}
+.doc-list-item:active { cursor: grabbing; }
+.doc-list-item.拖拽中 {
+  opacity: 0.4;
+  border-style: dashed;
+  border-color: var(--chalk-yellow);
+}
+.doc-list-item.拖拽悬停上 {
+  border-top: 2px solid var(--chalk-yellow);
+  box-shadow: 0 -4px 12px rgba(245,206,90,0.15);
+}
+.doc-list-item.拖拽悬停下 {
+  border-bottom: 2px solid var(--chalk-yellow);
+  box-shadow: 0 4px 12px rgba(245,206,90,0.15);
+}
+
+.doc-icon {
+  font-size: 1.5rem; width: 44px; height: 44px;
+  background: var(--board);
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.doc-info { flex: 1; min-width: 0; }
+.doc-name {
+  font-weight: 700; font-size: 0.9rem;
+  color: var(--chalk-white);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.doc-meta {
+  font-size: 0.75rem; color: var(--chalk-muted);
+  margin-top: 2px;
+}
+
+/* 刷新按钮 */
+.refresh-btn {
+  padding: 8px 20px;
+  border: 1.5px solid #4a5c50;
+  border-radius: 50px;
+  background: var(--board-card);
+  color: var(--chalk-soft);
+  font-family: var(--font-ui);
+  font-size: 0.85rem; font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s var(--ease-out);
+  margin-bottom: 12px;
+}
+.refresh-btn:hover { background: var(--board-elevated); border-color: var(--chalk-muted); color: var(--chalk-white); }
+.refresh-btn.inline { margin-bottom: 0; vertical-align: middle; }
+
+/* 删除文档按钮 */
+.删除按钮 {
+  flex-shrink: 0;
+  width: 32px; height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--chalk-muted);
+  font-size: 1.2rem;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s var(--ease-out);
+  opacity: 0;
+}
+.doc-list-item:hover .删除按钮 { opacity: 1; }
+.删除按钮:hover {
+  background: rgba(240,122,138,0.2);
+  color: var(--chalk-pink);
+}
+
+/* 删除确认提示 */
+.删除确认中 { background: rgba(240,122,138,0.12) !important; border-color: var(--chalk-pink) !important; }
+.删除确认中 .删除按钮 { opacity: 1; color: var(--chalk-pink); }
+
+/* ============================================================
+   通知弹窗
+   ============================================================ */
+.toast-container {
+  position: fixed; top: 24px; right: 24px;
+  display: flex; flex-direction: column; gap: 10px;
+  z-index: 1000;
+}
+
+.toast {
+  padding: 14px 22px;
+  border-radius: var(--radius-md);
+  font-size: 0.9rem; font-weight: 600;
+  box-shadow: var(--shadow-lg);
+  animation: 弹窗滑入 0.35s var(--ease-spring);
+  max-width: 400px;
+}
+
+.toast.success { background: #c8f0d2; border: 1.5px solid #5cc98a; color: #195a30; }
+.toast.error   { background: #fdd8dc; border: 1.5px solid #f07a8a; color: #5a1820; }
+.toast.info    { background: #d6eaf8; border: 1.5px solid #6eb5e0; color: #1a3850; }
+
+@keyframes 弹窗滑入 {
+  from { opacity: 0; transform: translateX(60px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ============================================================
+   移动端适配
+   ============================================================ */
+@media (max-width: 800px) {
+  /* 移动端隐藏装饰，节省空间 */
+  .树屋装饰 { display: none; }
+  body { padding: 8px; }
+  body::after { display: none; }
+  .app-container { max-width: 100%; height: calc(100vh - 16px); border-width: 4px; }
+
+  .menu-toggle { display: flex; }
+
+  .sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0;
+    transform: translateX(-100%);
+  }
+  .sidebar.open { transform: translateX(0); }
+
+  .sidebar-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 9;
+  }
+  .sidebar-overlay.show { display: block; }
+
+  .main-content {
+    padding: 24px 18px;
+    padding-top: 72px;
+  }
+
+  .page-title { font-size: 1.5rem; }
+
+  .form-row  { flex-direction: column; }
+  .doc-layout { grid-template-columns: 1fr; height: auto; }
+  .文档列表容器 { max-height: 50vh; }
+  #panel-documents { height: auto; overflow: visible; }
+  .chat-bubble { max-width: 93%; }
+  .add-mistake-row { flex-direction: column; align-items: stretch; }
+}
+
+/* ============================================================
+   滚动条
+   ============================================================ */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: #4a5c50;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover { background: var(--chalk-muted); }
+
+/* 选项框的下拉箭头颜色修正 */
+select { color-scheme: dark; }
+</style>
+</head>
+<body>
+
+<!-- ===== 🌳 树屋外景装饰 ===== -->
+<div class="树屋装饰">
+
+  <!-- ☀️ 太阳 + 光线 -->
+  <div class="太阳"></div>
+  <div class="太阳光线"></div>
+
+  <!-- ☁️ 云朵 -->
+  <div class="云 云1"></div>
+  <div class="云 云2"></div>
+  <div class="云 云3"></div>
+
+  <!-- 🌲 小树 -->
+  <div class="小树 小树左">🌲</div>
+  <div class="小树 小树左2">🌳</div>
+  <div class="小树 小树右">🌲</div>
+  <div class="小树 小树右2">🌳</div>
+
+  <!-- 🌸 花丛 -->
+  <div class="花丛 花丛左">🌸🌼💐🌷🌻</div>
+  <div class="花丛 花丛左2">🌼🌺🌸🌻</div>
+  <div class="花丛 花丛右">🌻🌷💐🌼🌸</div>
+  <div class="花丛 花丛右2">🌺🌸🌼🌷</div>
+  <div class="花丛 花丛底">🌱🌿🌸🌼🌺🌻🌱</div>
+
+  <!-- 🌿 藤蔓挂角 -->
+  <div class="藤蔓 tl">🌿</div>
+  <div class="藤蔓 tr">🍃</div>
+  <div class="藤蔓 bl">🌱</div>
+  <div class="藤蔓 br">🌿</div>
+
+  <!-- 🍃 飘落叶子 -->
+  <div class="落叶" style="top:10%;left:8%;animation-delay:0s;">🍂</div>
+  <div class="落叶" style="top:5%;right:10%;animation-delay:5s;">🍃</div>
+  <div class="落叶" style="top:15%;right:5%;animation-delay:10s;">🍂</div>
+
+  <!-- 🦋 蝴蝶扑翅飞舞 -->
+  <div class="蝴蝶">🦋</div>
+
+  <!-- 🐝 蜜蜂嗡嗡飞 -->
+  <div class="蜜蜂">🐝</div>
+
+
+  <!-- ✨ 萤火虫 -->
+  <div class="萤火虫"></div>
+  <div class="萤火虫"></div>
+  <div class="萤火虫"></div>
+  <div class="萤火虫"></div>
+</div>
+
+<div class="app-container">
+
+  <!-- 移动端菜单 -->
+  <button class="menu-toggle" id="menuToggle" aria-label="菜单">📚</button>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+  <!-- ===== 侧边栏：粉笔槽/工具架 ===== -->
+  <aside class="sidebar" id="sidebar">
+
+    <!-- 头部 -->
+    <div class="sidebar-header">
+      <div class="sidebar-logo">🎓</div>
+      <div class="sidebar-title">智能教材问答平台</div>
+    </div>
+
+    <!-- 年级 -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">🎯 年级</div>
+      <select id="gradeSelect">
+        <option value="小学一年级">小学一年级</option>
+        <option value="小学二年级">小学二年级</option>
+        <option value="小学三年级">小学三年级</option>
+        <option value="小学四年级">小学四年级</option>
+        <option value="小学五年级">小学五年级</option>
+        <option value="小学六年级">小学六年级</option>
+        <option value="初一">初一</option>
+        <option value="初二">初二</option>
+        <option value="初三" selected>初三</option>
+        <option value="高一">高一</option>
+        <option value="高二">高二</option>
+        <option value="高三">高三</option>
+      </select>
+    </div>
+
+    <!-- 学科 -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">📖 学科</div>
+      <select id="subjectSelect">
+        <option value="数学" selected>数学</option>
+        <option value="语文">语文</option>
+        <option value="英语">英语</option>
+        <option value="物理">物理</option>
+        <option value="化学">化学</option>
+        <option value="生物">生物</option>
+        <option value="历史">历史</option>
+        <option value="地理">地理</option>
+        <option value="政治">政治</option>
+      </select>
+    </div>
+
+    <!-- 章节 -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">📑 限定章节（可选）</div>
+      <input type="text" id="chapterInput" placeholder="如：第三章">
+    </div>
+
+    <!-- 检索数量 -->
+    <div class="sidebar-section">
+      <div class="sidebar-label">🔍 检索数量：<span id="topKValue">5</span></div>
+      <input type="range" id="topKSlider" min="1" max="20" value="5">
+      <div class="range-info"><span>1</span><span>20</span></div>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <!-- 标签导航 -->
+    <nav class="tab-nav" id="tabNav">
+      <button class="tab-btn active" data-tab="chat">
+        <span class="tab-icon">💬</span> 智能问答
+      </button>
+      <button class="tab-btn" data-tab="exam">
+        <span class="tab-icon">📝</span> 试题生成
+      </button>
+      <button class="tab-btn" data-tab="analysis">
+        <span class="tab-icon">📊</span> 错题分析
+      </button>
+      <button class="tab-btn" data-tab="documents">
+        <span class="tab-icon">📁</span> 文档管理
+      </button>
+    </nav>
+
+    <!-- 连接状态 -->
+    <div class="sidebar-status" id="sidebarStatus">
+      <span class="status-dot offline" id="statusDot"></span>
+      <span id="statusText">检测中...</span>
+    </div>
+  </aside>
+
+  <!-- ===== 主内容区（黑板） ===== -->
+  <main class="main-content">
+
+    <header class="page-header">
+      <h1 class="page-title">🎓 智能教材问答与学习辅助平台</h1>
+      <p class="page-subtitle">面向 K12 教育的 RAG 系统 —— 教材/课件/题库智能检索与学习辅助</p>
+    </header>
+
+    <!-- ===== 智能问答 ===== -->
+    <div class="tab-panel active" id="panel-chat">
+      <div class="chat-container">
+        <div class="chat-messages" id="chatMessages">
+          <div class="chat-empty" id="chatEmpty">
+            <div class="chat-empty-icon">📖</div>
+            <div class="chat-empty-text">翻开教材，向助教提问吧~</div>
+          </div>
+        </div>
+        <div class="chat-input-area">
+          <input
+            type="text"
+            class="chat-input"
+            id="chatInput"
+            placeholder="输入你的学科问题，比如「一元二次方程的求根公式是什么？」"
+            autocomplete="off"
+          >
+          <button class="chat-send-btn" id="chatSendBtn" title="发送">➤</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 试题生成 ===== -->
+    <div class="tab-panel" id="panel-exam">
+      <div class="exam-form">
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">题型</label>
+            <select id="examType">
+              <option value="单选题" selected>单选题</option>
+              <option value="多选题">多选题</option>
+              <option value="填空题">填空题</option>
+              <option value="判断题">判断题</option>
+              <option value="简答题">简答题</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">数量</label>
+            <input type="number" id="examCount" min="1" max="20" value="5">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">难度</label>
+          <div class="difficulty-slider" id="difficultySlider">
+            <div class="difficulty-option" data-value="基础">🌱 基础</div>
+            <div class="difficulty-option selected" data-value="中等">🌿 中等</div>
+            <div class="difficulty-option" data-value="困难">🌳 困难</div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">教材内容</label>
+          <textarea
+            class="context-textarea"
+            id="examContext"
+            placeholder="粘贴教材相关内容（至少 50 字）...
+例：一元二次方程的标准形式为 ax²+bx+c=0（a≠0）。求根公式：x = (-b ± √(b²-4ac)) / 2a..."
+          ></textarea>
+        </div>
+
+        <button class="生成按钮" id="generateBtn" disabled>✍️ 生成试题</button>
+        <div id="examResults"></div>
+      </div>
+    </div>
+
+    <!-- ===== 错题分析 ===== -->
+    <div class="tab-panel" id="panel-analysis">
+      <div class="analysis-layout">
+        <div class="add-mistake-row">
+          <div class="form-group">
+            <label class="form-label">知识点</label>
+            <input type="text" id="mistakeKP" placeholder="如：一元二次方程">
+          </div>
+          <div class="form-group">
+            <label class="form-label">难度</label>
+            <select id="mistakeDiff">
+              <option value="基础">基础</option>
+              <option value="中等" selected>中等</option>
+              <option value="困难">困难</option>
+            </select>
+          </div>
+          <button class="添加按钮" id="addMistakeBtn">➕ 添加</button>
+        </div>
+
+        <div class="mistake-list" id="mistakeList"></div>
+
+        <button class="分析按钮" id="analyzeBtn" disabled>📊 开始分析</button>
+        <div id="analysisResults"></div>
+      </div>
+    </div>
+
+    <!-- ===== 文档管理 ===== -->
+    <div class="tab-panel" id="panel-documents">
+      <div class="doc-layout">
+        <div class="上传栏">
+          <div class="doc-section-title">📤 上传文档</div>
+          <div class="upload-zone" id="uploadZone">
+            <div class="upload-zone-icon">📄</div>
+            <div class="upload-zone-text">点击或拖拽文件到此处</div>
+            <div class="upload-zone-hint">支持 PDF · DOCX · Markdown · TXT</div>
+            <input type="file" id="fileInput" accept=".pdf,.docx,.md,.txt">
+          </div>
+          <div class="doc-type-select" id="docTypeChips">
+            <div class="doc-type-chip selected" data-value="textbook">📖 教材</div>
+            <div class="doc-type-chip" data-value="courseware">📊 课件</div>
+            <div class="doc-type-chip" data-value="exam_bank">📝 题库</div>
+            <div class="doc-type-chip" data-value="syllabus">📋 课程标准</div>
+            <div class="doc-type-chip" data-value="lesson_plan">📑 教案</div>
+          </div>
+          <div class="upload-progress" id="uploadProgress" style="display:none;">
+            <div class="upload-progress-bar" id="uploadProgressBar" style="width:0%;"></div>
+          </div>
+        </div>
+
+        <div class="文档列表容器">
+          <div class="doc-section-title">📚 已有文档
+            <button class="refresh-btn" id="refreshDocBtn" style="margin-left:12px;margin-bottom:0;">🔄 刷新</button>
+          </div>
+          <div class="doc-list" id="docList"
+               ondragover="文档拖拽悬停(event)"
+               ondragleave="文档拖拽离开(event)"
+               ondrop="文档拖拽放下(event)">
+            <div style="color:var(--chalk-muted);padding:12px 0;">
+              暂无文档，请上传
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- 通知弹窗 -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+/* ============================================================
+   应用状态与配置
+   ============================================================ */
+
+/* 后端接口地址 */
+var API_BASE = 'http://localhost:8000';
+
+/* 全局状态 */
+var state = {
+  grade: '初三',
+  subject: '数学',
+  chapter: '',
+  topK: 5,
+  activeTab: 'chat',
+  chatMessages: [],
+  mistakes: [],
+  selectedDocType: 'textbook'
+};
+
+/* ============================================================
+   DOM 引用
+   ============================================================ */
+
+function $(sel) { return document.querySelector(sel); }
+function $$(sel) { return document.querySelectorAll(sel); }
+
+var refs = {
+  sidebar: $('#sidebar'),
+  menuToggle: $('#menuToggle'),
+  sidebarOverlay: $('#sidebarOverlay'),
+  gradeSelect: $('#gradeSelect'),
+  subjectSelect: $('#subjectSelect'),
+  chapterInput: $('#chapterInput'),
+  topKSlider: $('#topKSlider'),
+  topKValue: $('#topKValue'),
+  tabBtns: $$('.tab-btn'),
+  panels: $$('.tab-panel'),
+  statusDot: $('#statusDot'),
+  statusText: $('#statusText'),
+  /* 聊天 */
+  chatMessages: $('#chatMessages'),
+  chatEmpty: $('#chatEmpty'),
+  chatInput: $('#chatInput'),
+  chatSendBtn: $('#chatSendBtn'),
+  /* 试题 */
+  examType: $('#examType'),
+  examCount: $('#examCount'),
+  examContext: $('#examContext'),
+  generateBtn: $('#generateBtn'),
+  examResults: $('#examResults'),
+  /* 错题 */
+  mistakeKP: $('#mistakeKP'),
+  mistakeDiff: $('#mistakeDiff'),
+  addMistakeBtn: $('#addMistakeBtn'),
+  mistakeList: $('#mistakeList'),
+  analyzeBtn: $('#analyzeBtn'),
+  analysisResults: $('#analysisResults'),
+  /* 文档 */
+  uploadZone: $('#uploadZone'),
+  fileInput: $('#fileInput'),
+  docList: $('#docList'),
+  refreshDocBtn: $('#refreshDocBtn'),
+  uploadProgress: $('#uploadProgress'),
+  uploadProgressBar: $('#uploadProgressBar'),
+  toastContainer: $('#toastContainer')
+};
+
+/* ============================================================
+   通知弹窗
+   ============================================================ */
+
+function toast(消息内容, 类型, 停留毫秒) {
+  类型 = 类型 || 'info';
+  停留毫秒 = 停留毫秒 || 3500;
+  var el = document.createElement('div');
+  el.className = 'toast ' + 类型;
+  el.textContent = 消息内容;
+  refs.toastContainer.appendChild(el);
+  setTimeout(function() {
+    el.style.opacity = '0';
+    el.style.transform = 'translateX(40px)';
+    el.style.transition = 'all 0.3s ease-in';
+    setTimeout(function() { el.remove(); }, 300);
+  }, 停留毫秒);
+}
+
+/* ============================================================
+   API 辅助函数
+   ============================================================ */
+
+async function apiGet(路径) {
+  var res = await fetch(API_BASE + 路径);
+  if (!res.ok) {
+    var err = await res.json().catch(function() { return {}; });
+    throw new Error(err.detail || '请求失败 (' + res.status + ')');
+  }
+  return res.json();
+}
+
+async function apiPost(路径, 请求体, 超时毫秒) {
+  超时毫秒 = 超时毫秒 || 60000;
+  var controller = new AbortController();
+  var timer = setTimeout(function() { controller.abort(); }, 超时毫秒);
+  try {
+    var res = await fetch(API_BASE + 路径, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(请求体),
+      signal: controller.signal
+    });
+    if (!res.ok) {
+      var err = await res.json().catch(function() { return {}; });
+      throw new Error(err.detail || '请求失败 (' + res.status + ')');
+    }
+    return res.json();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/* ============================================================
+   连接状态检测
+   ============================================================ */
+
+async function checkHealth() {
+  try {
+    await apiGet('/health');
+    refs.statusDot.className = 'status-dot online';
+    refs.statusText.textContent = '✅ 后端连接正常';
+    return true;
+  } catch (e) {
+    refs.statusDot.className = 'status-dot offline';
+    refs.statusText.textContent = '❌ 后端未启动';
+    return false;
+  }
+}
+
+/* ============================================================
+   标签页切换
+   ============================================================ */
+
+function switchTab(标签名) {
+  state.activeTab = 标签名;
+
+  refs.tabBtns.forEach(function(btn) {
+    btn.classList.toggle('active', btn.dataset.tab === 标签名);
+  });
+  refs.panels.forEach(function(p) {
+    p.classList.toggle('active', p.id === 'panel-' + 标签名);
+  });
+
+  /* 切换到文档管理时自动刷新列表 */
+  if (标签名 === 'documents') loadDocuments();
+}
+
+refs.tabBtns.forEach(function(btn) {
+  btn.addEventListener('click', function() { switchTab(btn.dataset.tab); });
+});
+
+/* ============================================================
+   侧边栏事件
+   ============================================================ */
+
+refs.gradeSelect.addEventListener('change', function(e) { state.grade = e.target.value; });
+refs.subjectSelect.addEventListener('change', function(e) { state.subject = e.target.value; });
+refs.chapterInput.addEventListener('input', function(e) { state.chapter = e.target.value; });
+refs.topKSlider.addEventListener('input', function(e) {
+  state.topK = parseInt(e.target.value);
+  refs.topKValue.textContent = state.topK;
+});
+
+/* 移动端侧边栏 */
+refs.menuToggle.addEventListener('click', function() {
+  refs.sidebar.classList.toggle('open');
+  refs.sidebarOverlay.classList.toggle('show');
+});
+refs.sidebarOverlay.addEventListener('click', function() {
+  refs.sidebar.classList.remove('open');
+  refs.sidebarOverlay.classList.remove('show');
+});
+
+/* ============================================================
+   智能问答
+   ============================================================ */
+
+function renderChatMessages() {
+  if (state.chatMessages.length === 0) {
+    refs.chatEmpty.style.display = 'block';
+    var 残留气泡 = refs.chatMessages.querySelectorAll('.chat-bubble, .typing-indicator');
+    残留气泡.forEach(function(b) { b.remove(); });
+    return;
+  }
+
+  refs.chatEmpty.style.display = 'none';
+  var 残留气泡 = refs.chatMessages.querySelectorAll('.chat-bubble, .typing-indicator');
+  残留气泡.forEach(function(b) { b.remove(); });
+
+  state.chatMessages.forEach(function(msg) {
+    var 气泡 = document.createElement('div');
+    气泡.className = 'chat-bubble ' + msg.role;
+
+    var 标签 = document.createElement('div');
+    标签.className = 'chat-bubble-label';
+    标签.textContent = msg.role === 'user' ? '🧑‍🎓 学生' : '🤖 助教';
+
+    var 内容 = document.createElement('div');
+    /* 数学公式渲染：内部自动处理 HTML 转义 + LaTeX → KaTeX + 换行 */
+    内容.innerHTML = renderMathInText(msg.content);
+
+    气泡.appendChild(标签);
+    气泡.appendChild(内容);
+
+    /* 引用来源 */
+    if (msg.sources && msg.sources.length > 0) {
+      var 来源区 = document.createElement('div');
+      来源区.className = 'chat-sources';
+
+      msg.sources.forEach(function(src) {
+        var 来源项 = document.createElement('div');
+        来源项.className = 'source-item';
+        var 章节 = src.chapter
+          ? ' <span class="source-chapter">' + escapeHtml(src.chapter) + '</span>'
+          : '';
+        来源项.innerHTML =
+          '<span class="source-file">' + escapeHtml(src.source_file || '教材') + '</span>' + 章节 +
+          '<br><small>' + escapeHtml((src.content || '').slice(0, 120)) + '…</small>';
+        来源区.appendChild(来源项);
+      });
+
+      气泡.appendChild(来源区);
+    }
+
+    refs.chatMessages.appendChild(气泡);
+  });
+
+  /* 滚动到底部 */
+  refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
+}
+
+/* 输入中动画 */
+function addTypingIndicator() {
+  var 动画容器 = document.createElement('div');
+  动画容器.className = 'typing-indicator';
+  动画容器.id = 'typingIndicator';
+  for (var i = 0; i < 3; i++) {
+    var 点 = document.createElement('div');
+    点.className = 'typing-dot';
+    动画容器.appendChild(点);
+  }
+  refs.chatMessages.appendChild(动画容器);
+  refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
+}
+
+function removeTypingIndicator() {
+  var 动画元素 = $('#typingIndicator');
+  if (动画元素) 动画元素.remove();
+}
+
+/* 发送消息 */
+async function sendChat() {
+  var 问题 = refs.chatInput.value.trim();
+  if (!问题) return;
+
+  /* 添加用户消息 */
+  state.chatMessages.push({ role: 'user', content: 问题 });
+  refs.chatInput.value = '';
+  renderChatMessages();
+
+  /* 禁用输入 */
+  refs.chatInput.disabled = true;
+  refs.chatSendBtn.disabled = true;
+  addTypingIndicator();
+
+  try {
+    var data = await apiPost('/api/chat', {
+      question: 问题,
+      grade: state.grade,
+      subject: state.subject,
+      chapter: state.chapter || null,
+      top_k: state.topK
+    }, 120000);
+
+    removeTypingIndicator();
+    state.chatMessages.push({
+      role: 'assistant',
+      content: data.answer,
+      sources: data.sources || []
+    });
+    renderChatMessages();
+  } catch (err) {
+    removeTypingIndicator();
+    state.chatMessages.push({
+      role: 'assistant',
+      content: '⚠️ ' + err.message + '\n\n请确认后端已启动：python -m app.edu_api',
+      sources: []
+    });
+    renderChatMessages();
+    toast('问答请求失败：' + err.message, 'error');
+  } finally {
+    refs.chatInput.disabled = false;
+    refs.chatSendBtn.disabled = false;
+    refs.chatInput.focus();
+  }
+}
+
+refs.chatSendBtn.addEventListener('click', sendChat);
+refs.chatInput.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    sendChat();
+  }
+});
+
+/* ============================================================
+   试题生成
+   ============================================================ */
+
+/* 难度选择器 */
+$$('.difficulty-option').forEach(function(opt) {
+  opt.addEventListener('click', function() {
+    opt.parentElement.querySelectorAll('.difficulty-option').forEach(function(o) { o.classList.remove('selected'); });
+    opt.classList.add('selected');
+    checkGenerateButton();
+  });
+});
+
+function getSelectedDifficulty() {
+  var 选中 = document.querySelector('.difficulty-option.selected');
+  return 选中 ? 选中.dataset.value : '中等';
+}
+
+function checkGenerateButton() {
+  var 文本 = refs.examContext.value.trim();
+  refs.generateBtn.disabled = 文本.length < 10;
+}
+
+refs.examContext.addEventListener('input', checkGenerateButton);
+
+refs.generateBtn.addEventListener('click', async function() {
+  var 教材内容 = refs.examContext.value.trim();
+  if (教材内容.length < 10) return;
+
+  refs.generateBtn.disabled = true;
+  refs.generateBtn.textContent = '⏳ 正在出题...';
+  refs.examResults.innerHTML = '';
+
+  try {
+    var data = await apiPost('/api/exam/generate', {
+      context: 教材内容,
+      question_type: refs.examType.value,
+      count: parseInt(refs.examCount.value),
+      difficulty: getSelectedDifficulty(),
+      grade: state.grade,
+      subject: state.subject
+    }, 120000);
+
+    renderExamQuestions(data.questions);
+    toast('成功生成 ' + data.count + ' 道试题！', 'success');
+  } catch (err) {
+    refs.examResults.innerHTML =
+      '<div style="color:var(--chalk-pink);padding:16px;background:rgba(240,122,138,0.12);border-radius:var(--radius-md);margin-top:12px;">' +
+      '⚠️ 生成失败：' + escapeHtml(err.message) + '</div>';
+    toast('试题生成失败', 'error');
+  } finally {
+    refs.generateBtn.disabled = false;
+    refs.generateBtn.textContent = '✍️ 生成试题';
+  }
+});
+
+function renderExamQuestions(题目列表) {
+  var html = '';
+  题目列表.forEach(function(题, i) {
+    if (题.error) {
+      html += '<div class="question-card"><div class="question-number">生成失败</div>' +
+        '<div style="color:var(--chalk-pink)">' + escapeHtml(题.raw || '未知错误') + '</div></div>';
+      return;
+    }
+
+    html += '<div class="question-card" style="animation-delay:' + (i * 0.06) + 's">';
+    html += '<div class="question-number">第 ' + (i + 1) + ' 题 · ' + escapeHtml(题.knowledge_point || '') + '</div>';
+    html += '<div class="question-text">' + renderMathInText(题.question || '') + '</div>';
+
+    if (题.options && 题.options.length > 0) {
+      题.options.forEach(function(选项) {
+        html += '<div class="question-option">' + escapeHtml(选项) + '</div>';
+      });
+    }
+
+    html += '<details class="answer-reveal">';
+    html += '<summary>📖 查看答案与解析</summary>';
+    html += '<div class="answer-text">✅ <strong>答案：</strong>' + renderMathInText(题.answer || '') + '</div>';
+    if (题.explanation) {
+      html += '<div class="explanation-text">💡 ' + renderMathInText(题.explanation) + '</div>';
+    }
+    html += '</details>';
+    html += '</div>';
+  });
+  refs.examResults.innerHTML = html;
+}
+
+/* ============================================================
+   错题分析
+   ============================================================ */
+
+function renderMistakeList() {
+  if (state.mistakes.length === 0) {
+    refs.mistakeList.innerHTML =
+      '<div style="color:var(--chalk-muted);padding:12px;">还没有添加错题~</div>';
+    refs.analyzeBtn.disabled = true;
+    return;
+  }
+
+  refs.analyzeBtn.disabled = false;
+  var html = '';
+  state.mistakes.forEach(function(错题, i) {
+    html += '<div class="mistake-item">';
+    html += '<div class="mistake-item-info">';
+    html += '<span class="mistake-kp">' + escapeHtml(错题.knowledge_point) + '</span>';
+    html += '<span class="mistake-diff diff-' + 错题.difficulty + '">' + 错题.difficulty + '</span>';
+    html += '</div>';
+    html += '<button class="mistake-remove-btn" onclick="removeMistake(' + i + ')" title="移除">✕</button>';
+    html += '</div>';
+  });
+  refs.mistakeList.innerHTML = html;
+}
+
+function addMistake() {
+  var 知识点 = refs.mistakeKP.value.trim();
+  if (!知识点) return;
+  state.mistakes.push({
+    knowledge_point: 知识点,
+    difficulty: refs.mistakeDiff.value
+  });
+  refs.mistakeKP.value = '';
+  renderMistakeList();
+  toast('已添加错题：' + 知识点, 'success');
+}
+
+function removeMistake(索引) {
+  state.mistakes.splice(索引, 1);
+  renderMistakeList();
+}
+
+refs.addMistakeBtn.addEventListener('click', addMistake);
+refs.mistakeKP.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { e.preventDefault(); addMistake(); }
+});
+
+refs.analyzeBtn.addEventListener('click', async function() {
+  if (state.mistakes.length === 0) return;
+
+  refs.analyzeBtn.disabled = true;
+  refs.analyzeBtn.textContent = '🔍 分析中...';
+  refs.analysisResults.innerHTML = '';
+
+  try {
+    var data = await apiPost('/api/study/analyze', state.mistakes, 30000);
+    var html = '';
+
+    /* 薄弱知识点 */
+    if (data.weak_points && data.weak_points.length > 0) {
+      html += '<div class="result-card">';
+      html += '<div class="result-card-title">🔴 薄弱知识点 TOP5</div>';
+
+      var 最大次数 = data.weak_points[0].error_count;
+      data.weak_points.forEach(function(薄弱点, i) {
+        var 百分比 = (薄弱点.error_count / 最大次数 * 100);
+        html += '<div class="weak-point-row">';
+        html += '<div class="weak-point-rank">' + (i + 1) + '</div>';
+        html += '<div class="weak-point-name">' + escapeHtml(薄弱点.knowledge) + '</div>';
+        html += '<div class="weak-point-bar"><div class="weak-point-bar-fill" style="width:' + 百分比 + '%"></div></div>';
+        html += '<div class="weak-point-count">' + 薄弱点.error_count + ' 次</div>';
+        html += '</div>';
+      });
+
+      html += '</div>';
+    }
+
+    /* 难度分布 */
+    if (data.difficulty_distribution && Object.keys(data.difficulty_distribution).length > 0) {
+      html += '<div class="result-card">';
+      html += '<div class="result-card-title">📈 难度分布</div>';
+      var 难度分布 = data.difficulty_distribution;
+      var 总计 = Object.values(难度分布).reduce(function(a, b) { return a + b; }, 0);
+
+      for (var 难度 in 难度分布) {
+        var 题数 = 难度分布[难度];
+        var 百分比 = Math.round(题数 / 总计 * 100);
+        html += '<div class="weak-point-row">';
+        html += '<span class="mistake-diff diff-' + 难度 + '">' + 难度 + '</span>';
+        html += '<div class="weak-point-bar"><div class="weak-point-bar-fill" style="width:' + 百分比 + '%;background:var(--chalk-muted)"></div></div>';
+        html += '<div class="weak-point-count">' + 题数 + ' 题（' + 百分比 + '%）</div>';
+        html += '</div>';
+      }
+
+      html += '</div>';
+    }
+
+    /* 复习建议 */
+    if (data.suggestion) {
+      html += '<div class="suggestion-card">' + renderMathInText(data.suggestion) + '</div>';
+    }
+
+    html += '<button class="辅助按钮" onclick="clearAnalysis()">🔄 清空错题，重新开始</button>';
+    refs.analysisResults.innerHTML = html;
+    toast('分析完成！', 'success');
+  } catch (err) {
+    refs.analysisResults.innerHTML =
+      '<div style="color:var(--chalk-pink);padding:16px;background:rgba(240,122,138,0.12);border-radius:var(--radius-md);">' +
+      '⚠️ 分析失败：' + escapeHtml(err.message) + '</div>';
+    toast('分析失败', 'error');
+  } finally {
+    refs.analyzeBtn.disabled = false;
+    refs.analyzeBtn.textContent = '📊 开始分析';
+  }
+});
+
+function clearAnalysis() {
+  state.mistakes = [];
+  renderMistakeList();
+  refs.analysisResults.innerHTML = '';
+  toast('已清空错题', 'info');
+}
+
+/* ============================================================
+   文档管理
+   ============================================================ */
+
+/* 文档类型选择 */
+$$('#docTypeChips .doc-type-chip').forEach(function(芯片) {
+  芯片.addEventListener('click', function() {
+    芯片.parentElement.querySelectorAll('.doc-type-chip').forEach(function(c) { c.classList.remove('selected'); });
+    芯片.classList.add('selected');
+    state.selectedDocType = 芯片.dataset.value;
+  });
+});
+
+/* 上传区域事件 */
+refs.uploadZone.addEventListener('dragover', function(e) {
+  e.preventDefault();
+  refs.uploadZone.classList.add('dragover');
+});
+refs.uploadZone.addEventListener('dragleave', function() {
+  refs.uploadZone.classList.remove('dragover');
+});
+refs.uploadZone.addEventListener('drop', function(e) {
+  e.preventDefault();
+  refs.uploadZone.classList.remove('dragover');
+  var 文件列表 = e.dataTransfer.files;
+  if (文件列表.length > 0) uploadFile(文件列表[0]);
+});
+
+refs.fileInput.addEventListener('change', function() {
+  var 文件 = refs.fileInput.files[0];
+  if (文件) uploadFile(文件);
+});
+
+async function uploadFile(文件) {
+  var 表单数据 = new FormData();
+  表单数据.append('file', 文件);
+
+  refs.uploadProgress.style.display = 'block';
+  refs.uploadProgressBar.style.width = '30%';
+
+  try {
+    var res = await fetch(API_BASE + '/api/upload?doc_type=' + state.selectedDocType, {
+      method: 'POST',
+      body: 表单数据
+    });
+
+    refs.uploadProgressBar.style.width = '100%';
+
+    if (!res.ok) {
+      var err = await res.json().catch(function() { return {}; });
+      throw new Error(err.detail || '上传失败');
+    }
+
+    var data = await res.json();
+    toast('✅ 上传成功：' + data.filename, 'success');
+    setTimeout(function() {
+      refs.uploadProgress.style.display = 'none';
+      refs.uploadProgressBar.style.width = '0%';
+    }, 800);
+    loadDocuments();
+  } catch (err) {
+    refs.uploadProgress.style.display = 'none';
+    refs.uploadProgressBar.style.width = '0%';
+    toast('上传失败：' + err.message, 'error');
+  }
+}
+
+async function loadDocuments() {
+  try {
+    var data = await apiGet('/api/documents');
+    var 文档列表 = data.documents || [];
+
+    if (文档列表.length === 0) {
+      refs.docList.innerHTML =
+        '<div style="color:var(--chalk-muted);padding:12px;">暂无文档，请上传</div>';
+      return;
+    }
+
+    /* 按年级倒序排列：高三 → 一年级 */
+    var 年级顺序 = ['一年级','二年级','三年级','四年级','五年级','六年级','初一','初二','初三','高一','高二','高三'];
+    function 提取年级排序键(文档) {
+      var 文件名 = 文档.filename || '';
+      for (var i = 年级顺序.length - 1; i >= 0; i--) {
+        if (文件名.indexOf(年级顺序[i]) !== -1) return i;
+      }
+      return -1;
+    }
+    文档列表.sort(function(a, b) {
+      return 提取年级排序键(b) - 提取年级排序键(a);
+    });
+
+    var 类型标签 = { textbooks: '📖 教材', courseware: '📊 课件', exam_banks: '📝 题库' };
+    var html = '';
+    文档列表.forEach(function(文档) {
+      var 标签 = 类型标签[文档.type] || 文档.type;
+      html += '<div class="doc-list-item" data-filename="' + escapeAttr(文档.filename) + '"';
+      html += ' draggable="true"';
+      html += ' ondragstart="文档开始拖拽(event)"';
+      html += ' ondragend="文档拖拽结束(event)"';
+      html += '>';
+      html += '<div class="doc-icon">📄</div>';
+      html += '<div class="doc-info">';
+      html += '<div class="doc-name">' + escapeHtml(文档.filename) + '</div>';
+      html += '<div class="doc-meta">' + 标签 + ' · ' + (文档.size_bytes / 1024).toFixed(1) + ' KB</div>';
+      html += '</div>';
+      html += '<button class="删除按钮" title="删除文档" onclick="event.stopPropagation();确认并删除文档(this)">🗑️</button>';
+      html += '</div>';
+    });
+    refs.docList.innerHTML = html;
+  } catch (err) {
+    refs.docList.innerHTML =
+      '<div style="color:var(--chalk-pink);">⚠️ 无法获取文档列表</div>';
+  }
+}
+
+refs.refreshDocBtn.addEventListener('click', loadDocuments);
+
+/** 转义 HTML 属性值中的特殊字符 */
+function escapeAttr(文本) {
+  if (!文本) return '';
+  return 文本.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/** 点击删除按钮，需要二次确认 */
+function 确认并删除文档(按钮) {
+  var 列表项 = 按钮.closest('.doc-list-item');
+  var 文档名 = 列表项.dataset.filename;
+
+  /* 第一次点击：变红提示再次确认 */
+  if (!列表项.classList.contains('删除确认中')) {
+    列表项.classList.add('删除确认中');
+    按钮.textContent = '❗';
+    按钮.title = '再次点击确认删除';
+    /* 3 秒后自动取消确认状态 */
+    setTimeout(function() {
+      if (列表项.classList.contains('删除确认中')) {
+        列表项.classList.remove('删除确认中');
+        按钮.textContent = '🗑️';
+        按钮.title = '删除文档';
+      }
+    }, 3000);
+    return;
+  }
+
+  /* 第二次点击：执行删除 */
+  执行删除文档(文档名, 列表项);
+}
+
+/** 真正执行删除文档的 API 调用 */
+async function 执行删除文档(文档名, 列表项) {
+  try {
+    var res = await fetch(API_BASE + '/api/documents/delete?filename=' + encodeURIComponent(文档名), {
+      method: 'POST'
+    });
+
+    if (!res.ok) {
+      var err = await res.json().catch(function() { return {}; });
+      throw new Error(err.detail || '删除失败');
+    }
+
+    var data = await res.json();
+    toast('🗑️ ' + (data.message || '已删除'), 'success');
+    /* 带一点淡出动画再移除 */
+    列表项.style.opacity = '0';
+    列表项.style.transform = 'scale(0.95)';
+    列表项.style.transition = 'all 0.3s ease-out';
+    setTimeout(function() { loadDocuments(); }, 350);
+  } catch (err) {
+    toast('删除失败：' + err.message, 'error');
+    列表项.classList.remove('删除确认中');
+  }
+}
+
+/* ============================================================
+   文档拖拽排序
+   ============================================================ */
+var 拖拽源 = null;
+
+function 文档开始拖拽(e) {
+  拖拽源 = e.currentTarget;
+  拖拽源.classList.add('拖拽中');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', 拖拽源.dataset.filename);
+}
+
+function 文档拖拽结束(e) {
+  e.currentTarget.classList.remove('拖拽中');
+  document.querySelectorAll('.doc-list-item.拖拽悬停下, .doc-list-item.拖拽悬停上').forEach(function(el) {
+    el.classList.remove('拖拽悬停上', '拖拽悬停下');
+  });
+  拖拽源 = null;
+}
+
+function 文档拖拽悬停(e) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  if (!拖拽源) return;
+
+  document.querySelectorAll('.doc-list-item.拖拽悬停下, .doc-list-item.拖拽悬停上').forEach(function(el) {
+    el.classList.remove('拖拽悬停上', '拖拽悬停下');
+  });
+
+  var 目标 = e.target.closest('.doc-list-item');
+  if (!目标 || 目标 === 拖拽源) return;
+
+  var 矩形 = 目标.getBoundingClientRect();
+  var 鼠标Y = e.clientY;
+  var 中点 = 矩形.top + 矩形.height / 2;
+
+  if (鼠标Y < 中点) {
+    目标.classList.add('拖拽悬停上');
+  } else {
+    目标.classList.add('拖拽悬停下');
+  }
+}
+
+function 文档拖拽放下(e) {
+  e.preventDefault();
+  if (!拖拽源) return;
+
+  document.querySelectorAll('.doc-list-item.拖拽悬停下, .doc-list-item.拖拽悬停上').forEach(function(el) {
+    el.classList.remove('拖拽悬停上', '拖拽悬停下');
+  });
+
+  var 目标 = e.target.closest('.doc-list-item');
+  if (!目标 || 目标 === 拖拽源) return;
+
+  var 列表 = refs.docList;
+  var 矩形 = 目标.getBoundingClientRect();
+  var 鼠标Y = e.clientY;
+  var 中点 = 矩形.top + 矩形.height / 2;
+
+  if (鼠标Y < 中点) {
+    列表.insertBefore(拖拽源, 目标);
+  } else {
+    列表.insertBefore(拖拽源, 目标.nextSibling);
+  }
+}
+
+/* ============================================================
+   数学公式渲染
+   ============================================================ */
+
+/**
+ * 将文本中的 LaTeX 数学公式渲染为 KaTeX HTML
+ * 支持：\(...\) 行内公式、$$...$$ 块级公式
+ *
+ * 策略：先提取公式→占位符，转义其余文本，KaTeX渲染公式，放回占位符
+ */
+function renderMathInText(原始文本) {
+  if (!原始文本) return '';
+
+  var 占位符列表 = [];
+  var 安全文本 = 原始文本;
+
+  /* ① 块级公式 $$...$$ → 先抽出来换成占位符 */
+  安全文本 = 安全文本.replace(/\$\$([\s\S]*?)\$\$/g, function(匹配, 公式) {
+    var 索引 = 占位符列表.length;
+    占位符列表.push({ 类型: 'display', 公式: 公式.trim() });
+    return '%%MATH_BLOCK_' + 索引 + '%%';
+  });
+
+  /* ② 行内公式 \(...\) → 占位符 */
+  安全文本 = 安全文本.replace(/\\\(([\s\S]*?)\\\)/g, function(匹配, 公式) {
+    var 索引 = 占位符列表.length;
+    占位符列表.push({ 类型: 'inline', 公式: 公式.trim() });
+    return '%%MATH_BLOCK_' + 索引 + '%%';
+  });
+
+  /* ③ 独立 $...$ 行内公式 → 占位符（跳过 $$ 和纯数字） */
+  安全文本 = 安全文本.replace(/(?<!\$)\$(?!\$)([\s\S]*?)(?<!\$)\$(?!\$)/g, function(匹配, 公式) {
+    if (公式.trim().length < 2 || /^\d+$/.test(公式.trim())) return 匹配;
+    var 索引 = 占位符列表.length;
+    占位符列表.push({ 类型: 'inline', 公式: 公式.trim() });
+    return '%%MATH_BLOCK_' + 索引 + '%%';
+  });
+
+  /* 对非公式文本做 HTML 转义 */
+  var 已转义 = 安全文本
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+  /* HTML 转义后，换行先转 <br>（此时 KaTeX 占位符还在，不受影响） */
+  已转义 = 已转义.replace(/\n/g, '<br>');
+
+  /* 把占位符替换回渲染好的 KaTeX HTML */
+  已转义 = 已转义.replace(/%%MATH_BLOCK_(\d+)%%/g, function(匹配, 索引) {
+    var 块 = 占位符列表[parseInt(索引)];
+    try {
+      return katex.renderToString(块.公式, {
+        displayMode: 块.类型 === 'display',
+        throwOnError: false,
+        trust: true,
+        strict: false
+      });
+    } catch (e) {
+      return '<code style="color:var(--chalk-pink)">[公式错误]</code>';
+    }
+  });
+
+  return 已转义;
+}
+
+/* ============================================================
+   工具函数
+   ============================================================ */
+
+function escapeHtml(原始字符串) {
+  var div = document.createElement('div');
+  div.textContent = 原始字符串;
+  return div.innerHTML;
+}
+
+/* ============================================================
+   初始化
+   ============================================================ */
+
+async function init() {
+  await checkHealth();
+  renderMistakeList();
+  setInterval(checkHealth, 30000);
+}
+
+init();
+</script>
+
+</body>
+</html>

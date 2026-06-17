@@ -1,0 +1,42 @@
+# ============================================================
+# 智能教材问答与学习辅助平台 - 依赖
+# 清华镜像安装:
+#   pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt
+# ============================================================
+
+# LangChain 核心
+langchain>=0.3.0
+langchain-community>=0.3.0
+langchain-openai>=0.2.0
+langchain-postgres>=0.0.12
+
+# Embedding（百炼 DashScope）
+dashscope>=1.20.0
+
+# 文档解析
+pypdf>=4.0.0
+python-docx>=1.1.0
+unstructured>=0.15.0
+
+# 重排序
+sentence-transformers>=3.0.0
+
+# Web 框架
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+python-multipart>=0.0.9
+
+# 前端
+streamlit>=1.38.0
+
+# 缓存
+redis>=5.0.0
+
+# 向量数据库客户端
+psycopg2-binary>=2.9.0
+pgvector>=0.3.0
+
+# 工具
+python-dotenv>=1.0.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
