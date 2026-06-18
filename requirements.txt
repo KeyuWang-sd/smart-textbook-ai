@@ -18,16 +18,10 @@ pypdf>=4.0.0
 python-docx>=1.1.0
 unstructured>=0.15.0
 
-# 重排序
-sentence-transformers>=3.0.0
-
 # Web 框架
 fastapi>=0.115.0
 uvicorn[standard]>=0.30.0
 python-multipart>=0.0.9
-
-# 前端
-streamlit>=1.38.0
 
 # 缓存
 redis>=5.0.0

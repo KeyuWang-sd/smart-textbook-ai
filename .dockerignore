@@ -1,0 +1,48 @@
+# ============================================================
+# Docker Build Context 排除规则
+# 防止 .env 等敏感文件被打包进 Docker 镜像
+# ============================================================
+
+# ---- 敏感文件 ----
+.env
+
+# ---- Git ----
+.git
+.gitignore
+.gitattributes
+
+# ---- Python 缓存 ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+# ---- 数据目录（不需要入镜像） ----
+data/courseware/*
+data/exam_banks/*
+!data/courseware/.gitkeep
+!data/exam_banks/.gitkeep
+
+# ---- Docker ----
+pgdata/
+docker-compose.yml
+Dockerfile
+
+# ---- 文档（减小镜像体积） ----
+README.md
+*.md
+
+# ---- IDE ----
+.vscode/
+.idea/
+
+# ---- Claude ----
+.claude/
+
+# ---- 操作系统 ----
+*.log
+.DS_Store
+Thumbs.db

@@ -55,28 +55,6 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  # ===== Web UI (Streamlit) =====
-  ui:
-    image: python:3.12-slim
-    container_name: edu-ui
-    working_dir: /app
-    ports:
-      - "8501:8501"
-    environment:
-      API_BASE_URL: http://api:8000
-    volumes:
-      - .:/app
-    command: >
-      sh -c "
-        pip install -q streamlit requests &&
-        streamlit run ui/edu_ui.py --server.port 8501 --server.address 0.0.0.0
-      "
-    depends_on:
-      - api
-    restart: unless-stopped
-    profiles:
-      - streamlit  # 仅在 docker compose --profile streamlit up 时启动
-
   # ===== Web UI (新版静态前端,默认) =====
   ui-static:
     image: nginx:alpine
@@ -101,7 +79,6 @@ services:
       - ./ui/index.html:/usr/share/nginx/html/index.html:ro
     depends_on:
       - api
-      - ui
     restart: unless-stopped
     profiles:
       - production  # 仅在 docker compose --profile production up 时启动
