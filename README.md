@@ -77,40 +77,48 @@
 ## 🚀 Quick Start
 
 ```bash
-# 1️⃣ 启动数据库
-docker start edu-postgres edu-redis
+# 1️⃣ 启动数据库（PostgreSQL + pgvector + Redis）
+docker compose up -d postgres redis
 
-# 2️⃣ 启动后端 API
-cd rag_test
-python3.11 -c "from app.edu_api import app; import uvicorn; uvicorn.run(app, host='0.0.0.0', port=8000, reload=False)"
+# 2️⃣ 安装依赖
+pip install -r requirements.txt
 
-# 3️⃣ 启动前端
-cd ui && python3.11 -m http.server 3000
+# 3️⃣ 启动后端 API
+python -m app.edu_api
+
+# 4️⃣ 启动前端（另一个终端）
+cd ui && python -m http.server 3000
 ```
 
 然后打开 **http://localhost:3000** 🎉
 
 <details>
-<summary>📦 首次使用？导入教材文档</summary>
+<summary>📦 首次使用？一键导入教材文档</summary>
+
+上传文档后，通过 API 一键入库（支持 PDF/DOCX/MD/TXT）：
 
 ```bash
-cd rag_test
-python3.11 -c "
+# 方式 1：通过 API 上传 + 导入
+curl -X POST "http://localhost:8000/api/upload?doc_type=textbook&grade=初三&subject=数学" \
+  -F "file=@data/textbooks/初三数学.md"
+curl -X POST "http://localhost:8000/api/ingest" \
+  -H "Content-Type: application/json" \
+  -d '{"doc_type":"textbook","grade":"初三","subject":"数学"}'
+
+# 方式 2：批量导入所有教材（在 app.edu_api 运行状态下）
+python -c "
 from app.edu_document_loader import load_from_directory
 from app.edu_splitter import split_documents
+from app.edu_rag_engine import EduVectorStore
 from app.config import settings
-from langchain_openai import OpenAIEmbeddings
-from langchain_postgres.vectorstores import PGVector
 
-docs = load_from_directory('data/textbooks', doc_type='textbook', grade='初三', subject='数学')
-chunks = split_documents(docs)
-embeddings = OpenAIEmbeddings(model='text-embedding-v3', api_key=settings.DASHSCOPE_API_KEY,
-    base_url='https://dashscope.aliyuncs.com/compatible-mode/v1',
-    tiktoken_enabled=False, check_embedding_ctx_length=False)
-for i in range(0, len(chunks), 10):
-    PGVector.from_documents(documents=chunks[i:i+10], embedding=embeddings,
-        connection=settings.database_url, collection_name='edu_初三_数学')
-print('✅ 导入完成')
+for grade in ['初一','初二','初三']:
+    for subject in ['数学']:
+        docs = load_from_directory('data/textbooks', doc_type='textbook', grade=grade, subject=subject)
+        chunks = split_documents(docs)
+        store = EduVectorStore(settings.database_url)
+        store.create_collection(chunks, grade=grade, subject=subject)
+        print(f'✓ {grade} {subject} → {len(chunks)} chunks')
 ```
 </details>
 
@@ -124,6 +132,7 @@ print('✅ 导入完成')
 | ⚡ Backend | FastAPI · Uvicorn · LangChain |
 | 🧠 LLM | DeepSeek V4 Flash |
 | 🧬 Embedding | 百炼 text-embedding-v3（1024 dims） |
+| 📊 Reranker | 百炼 gte-rerank-v2（API，无需本地模型） |
 | 🗄️ Vector DB | PostgreSQL + pgvector |
 | 🔴 Cache | Redis |
 | 📄 Parsing | PyPDF · python-docx · Unstructured |
@@ -141,11 +150,15 @@ rag_test/
 │   ├── edu_splitter.py           # 智能切分 & 章节识别
 │   ├── edu_rag_engine.py         # RAG 引擎 (检索/重排/生成)
 │   ├── edu_features.py           # 试题生成/图谱/错题分析
-│   └── edu_api.py                # 6 个 RESTful 接口
-├── ui/index.html                 # 黑板风格前端 (2647 行)
+│   └── edu_api.py                # 8 个 RESTful 接口
+├── ui/
+│   ├── index.html                # 黑板风格前端 (2647 行)
+│   └── nginx-static.conf         # Nginx 静态服务配置
 ├── data/textbooks/               # 1~12 年级数学全册 📚
+├── .dockerignore                 # Docker 安全加固
+├── .env.example                  # 环境变量模板
 ├── docker-compose.yml            # 容器编排
-└── .env                          # 环境变量 (gitignore)
+└── requirements.txt              # 依赖清单
 ```
 
 ---
