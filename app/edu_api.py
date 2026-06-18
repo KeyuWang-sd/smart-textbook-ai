@@ -457,7 +457,7 @@ async def ingest_documents(request: IngestRequest):
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("  🎓 智能教材问答与学习辅助平台")
+    print("  [SmartTextbook] 智能教材问答与学习辅助平台")
     print("  FastAPI + pgvector + LangChain + DeepSeek")
     print("=" * 60)
     print("  API 文档: http://{}:{}/docs".format(

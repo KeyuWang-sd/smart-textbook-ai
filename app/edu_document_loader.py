@@ -149,11 +149,11 @@ def load_from_directory(
                     subject=subject,
                 )
                 all_docs.extend(docs)
-                print("  ✓ 已加载: {} ({} 页)".format(
+                print("[OK] 已加载: {} ({} 页)".format(
                     file_path.name, len(docs)
                 ))
             except Exception as e:
-                print("  ✗ 跳过 {}: {}".format(file_path.name, e))
+                print("[SKIP] 跳过 {}: {}".format(file_path.name, e))
 
     print("\n总计加载 {} 个文档块".format(len(all_docs)))
     return all_docs

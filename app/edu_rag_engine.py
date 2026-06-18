@@ -5,7 +5,7 @@
 ① 查询扩展 (Multi-Query) → 适配学生用语
 ② 向量检索 (pgvector)   → 元数据过滤
 ③ 去重                   → 合并多查询结果
-④ 重排序 (BGE-Reranker)  → 年级匹配加权 +15%
+④ 重排序 (API Reranker)  → 年级匹配加权 +15%
 ⑤ 上下文构建             → 章节引用
 ⑥ LLM 生成               → 教育化 Prompt
 """
@@ -16,6 +16,15 @@ from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_postgres.vectorstores import PGVector
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.documents import Document
+
+# ================================================================
+# 可选的 requests 库；若未安装则 fallback
+# ================================================================
+try:
+    import requests as _requests
+    HAS_REQUESTS = True
+except ImportError:
+    HAS_REQUESTS = False
 
 
 # ================================================================
@@ -124,12 +133,29 @@ class EduVectorStore:
 # 2. 教育场景重排序 (Rerank)
 # ================================================================
 
-class EduReranker:
-    """教育场景重排序 —— 当前跳过BGE（避免下载超时）"""
+class DashScopeReranker:
+    """百炼 DashScope API 重排序 —— 用 gte-rerank-v2 在线模型
 
-    def __init__(self, model_name: str = "BAAI/bge-reranker-v2-m3"):
-        self.model = None
-        self._available = False
+    通过百炼 OpenAI 兼容接口调用 rerank API，无需本地下载模型。
+    支持年级匹配加权（同年级文档 +15% 权重）。
+    """
+
+    def __init__(
+        self,
+        api_key: str = "",
+        model: str = "gte-rerank-v2",
+        base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    ):
+        """
+        Args:
+            api_key: 百炼 DashScope API Key（settings.DASHSCOPE_API_KEY）
+            model: rerank 模型名，默认 gte-rerank-v2
+            base_url: OpenAI 兼容接口地址
+        """
+        self.api_key = api_key
+        self.model = model
+        self.base_url = base_url.rstrip("/")
+        self._available = bool(api_key and HAS_REQUESTS)
 
     def rerank(
         self,
@@ -138,30 +164,78 @@ class EduReranker:
         top_k: int = 3,
         target_grade: Optional[str] = None,
     ) -> List[Document]:
-        """重排序 + 难度适配加权
+        """调用百炼 rerank API 重排序 + 年级匹配加权
 
         Args:
             query: 学生提问
             documents: 候选文档列表
             top_k: 返回 top-k 文档
             target_grade: 目标年级，同年级文档 +15% 权重
+
+        Returns:
+            List[Document]: 重排序后的文档列表
         """
-        if not self._available:
+        if not self._available or not documents:
             return documents[:top_k]
 
-        pairs = [(query, doc.page_content) for doc in documents]
-        scores = self.model.predict(pairs)
+        # 准备请求
+        url = "{}/rerank".format(self.base_url)
+        headers = {
+            "Authorization": "Bearer {}".format(self.api_key),
+            "Content-Type": "application/json",
+        }
+        # top_n 多取一些，留加权排序的余量
+        top_n = min(top_k * 2 if top_k > 1 else top_k + 1, len(documents))
+        payload = {
+            "model": self.model,
+            "query": query,
+            "documents": [doc.page_content for doc in documents],
+            "top_n": top_n,
+        }
 
-        # 为匹配目标年级的文档增加权重
-        for i, doc in enumerate(documents):
-            doc_grade = doc.metadata.get("grade", "")
-            if target_grade and doc_grade == target_grade:
-                scores[i] *= 1.15  # 同年级文档 +15% 权重
+        try:
+            resp = _requests.post(
+                url, headers=headers, json=payload, timeout=30
+            )
+            resp.raise_for_status()
+            data = resp.json()
 
-        ranked = sorted(
-            zip(documents, scores), key=lambda x: x[1], reverse=True
-        )
-        return [doc for doc, _ in ranked[:top_k]]
+            # 兼容两种返回格式（OpenAI 兼容模式 / DashScope 原生格式）
+            results = data.get("results") or data.get("output", {}).get("results", [])
+            if not results:
+                return documents[:top_k]
+
+            # 解析分数并按年级加权
+            scored_docs = []
+            for r in results:
+                idx = r.get("index", 0)
+                if idx >= len(documents):
+                    continue
+                score = r.get("relevance_score", r.get("score", 0.0))
+                doc = documents[idx]
+
+                # 教育场景：同年级文档 +15% 权重
+                doc_grade = doc.metadata.get("grade", "")
+                if target_grade and doc_grade == target_grade:
+                    score *= 1.15
+
+                scored_docs.append((doc, score))
+
+            if not scored_docs:
+                return documents[:top_k]
+
+            scored_docs.sort(key=lambda x: x[1], reverse=True)
+            return [doc for doc, _ in scored_docs[:top_k]]
+
+        except Exception as e:
+            print("[DashScopeReranker] API 调用失败: {}，回退取 top-{}".format(
+                e, top_k
+            ))
+            return documents[:top_k]
+
+
+# 兼容旧名，方便已有引用的代码
+EduReranker = DashScopeReranker
 
 
 # ================================================================
@@ -413,8 +487,12 @@ def create_edu_rag(
         chapter=chapter,
     )
 
-    # 创建重排序器
-    reranker = EduReranker()
+    # 创建重排序器（百炼 gte-rerank-v2 在线 API）
+    reranker = DashScopeReranker(
+        api_key=os.getenv("DASHSCOPE_API_KEY", ""),
+        model="gte-rerank-v2",
+        base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
+    )
 
     # 创建查询扩展器
     expander = EduMultiQuery(llm)
