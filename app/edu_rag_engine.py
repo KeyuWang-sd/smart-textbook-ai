@@ -11,7 +11,7 @@
 """
 
 import os
-from typing import List, Dict, Optional
+from typing import List, Optional
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_postgres.vectorstores import PGVector
 from langchain_core.prompts import ChatPromptTemplate
@@ -45,7 +45,7 @@ def _get_embeddings():
         api_key=os.getenv("DASHSCOPE_API_KEY"),
         base_url=BAILIAN_BASE_URL,
         tiktoken_enabled=False,          # 百炼 API 需要原始文本，不能传 token ID
-        check_embedding_ctx_length=False, # 跳过上下文长度检查
+        check_embedding_ctx_length=False,  # 跳过上下文长度检查
     )
 
 
@@ -327,8 +327,12 @@ class EduRAGPipeline:
             ("human", "{question}"),
         ])
 
-    def query(self, question: str) -> dict:
+    def query(self, question: str, history_context: str = "") -> dict:
         """执行教育化 RAG 查询
+
+        Args:
+            question: 学生提问
+            history_context: 可选，历史对话上下文（来自短期记忆）
 
         Returns:
             dict: {
@@ -388,13 +392,20 @@ class EduRAGPipeline:
 
         context = "\n\n---\n\n".join(context_parts)
 
-        # ⑥ 生成回答
+        # ⑥ 注入历史上下文（如有）
+        enriched_question = question
+        if history_context:
+            enriched_question = "{}\n\n当前问题：{}".format(
+                history_context.strip(), question
+            )
+
+        # ⑦ 生成回答
         response = self.llm.invoke(
             self.prompt.format_messages(
                 subject=self.subject,
                 grade=self.grade,
                 context=context,
-                question=question,
+                question=enriched_question,
             )
         )
 
@@ -440,6 +451,7 @@ def _latex_to_text(text: str) -> str:
     text = text.replace("}", ")")
     text = re.sub(r"\\([a-zA-Z]+)", r"\1", text)
     return text.strip()
+
 
 # ================================================================
 # 工厂函数：创建 RAG Pipeline

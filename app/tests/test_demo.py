@@ -1,5 +1,6 @@
 """CI 验证用 —— 确保环境正常运行"""
 
+
 def test_imports():
     """验证核心模块可导入"""
     from app.config import settings

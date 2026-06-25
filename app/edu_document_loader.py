@@ -7,7 +7,7 @@
 """
 
 from pathlib import Path
-from typing import List, Dict, Optional
+from typing import List, Optional
 from langchain_core.documents import Document
 from langchain_community.document_loaders import (
     PyPDFLoader,

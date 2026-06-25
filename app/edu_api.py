@@ -8,16 +8,21 @@
 
 API 接口:
     POST /api/upload          - 上传教育文档
-    POST /api/chat            - 教育问答
+    POST /api/chat            - 教育问答（支持 session_id 记忆）
+    POST /api/agent           - 🆕 统一 Agent 接口（意图识别+多步编排+记忆）
     POST /api/exam/generate   - 试题生成
+    POST /api/image/analyze   - 🆕 图片内容识别（OCR）
+    POST /api/image/solve     - 🆕 拍照解题
     GET  /api/knowledge/graph - 知识点图谱
     POST /api/study/analyze   - 错题分析
     GET  /health              - 健康检查
 """
 
 import os
+import re
 import sys
-import shutil
+import json
+import uuid
 from pathlib import Path
 from typing import Optional, List
 from fastapi import FastAPI, UploadFile, File, HTTPException, Query
@@ -28,7 +33,22 @@ import uvicorn
 # 添加项目根目录到 path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.config import settings
+from app.config import settings  # noqa: E402
+
+
+def _safe_filename(filename: str) -> str:
+    """防路径遍历：剥离目录，只保留安全文件名"""
+    # 只取最后一个路径分隔符后的部分（防止 ../../etc/passwd）
+    name = os.path.basename(filename)
+    # 移除所有非安全字符，只保留中英文、数字、._-
+    safe = re.sub(r'[^\w一-鿿.\-_]', '_', name)
+    # 防止空文件名
+    if not safe or safe.startswith('.'):
+        safe = "file_" + safe
+    # 加随机前缀防冲突
+    stem, ext = os.path.splitext(safe)
+    return "{}_{}{}".format(stem, uuid.uuid4().hex[:8], ext)
+
 
 # ================================================================
 # FastAPI 应用
@@ -57,6 +77,27 @@ app.add_middleware(
 _uploaded_docs: dict = {}
 # RAG Pipeline 实例（按 年级+学科 缓存）
 _rag_pipelines: dict = {}
+# 记忆存储实例（延迟初始化）
+_memory_short: Optional[object] = None
+_memory_long: Optional[object] = None
+
+
+def get_short_memory():
+    """获取或创建短期记忆实例"""
+    global _memory_short
+    if _memory_short is None:
+        from app.memory_store import ShortTermMemory
+        _memory_short = ShortTermMemory()
+    return _memory_short
+
+
+def get_long_memory():
+    """获取或创建长期记忆实例"""
+    global _memory_long
+    if _memory_long is None:
+        from app.memory_store import LongTermMemory
+        _memory_long = LongTermMemory()
+    return _memory_long
 
 
 def get_rag_pipeline(grade: str, subject: str):
@@ -83,6 +124,7 @@ class EduChatRequest(BaseModel):
     subject: str = Field(default="数学", description="学科")
     chapter: Optional[str] = Field(default=None, description="限定章节")
     top_k: int = Field(default=5, ge=1, le=20)
+    session_id: Optional[str] = Field(default=None, description="会话 ID（传入后支持历史上下文）")
 
 
 class EduChatResponse(BaseModel):
@@ -101,6 +143,14 @@ class ExamGenRequest(BaseModel):
     difficulty: str = Field(default="中等")
     grade: str = Field(default="初三")
     subject: str = Field(default="数学")
+
+
+class AgentChatRequest(BaseModel):
+    """多 Agent 统一请求"""
+    question: str = Field(..., min_length=1, description="用户问题")
+    grade: str = Field(default="初三", description="年级")
+    subject: str = Field(default="数学", description="学科")
+    session_id: Optional[str] = Field(default=None, description="会话 ID")
 
 
 class WrongAnswer(BaseModel):
@@ -145,6 +195,9 @@ async def upload_document(
             ),
         )
 
+    # 安全文件名（防路径遍历）
+    safe_name = _safe_filename(file.filename)
+
     # 确定保存目录
     type_dirs = {
         "textbook": "textbooks",
@@ -158,15 +211,16 @@ async def upload_document(
     save_dir.mkdir(parents=True, exist_ok=True)
 
     # 保存文件
-    file_path = save_dir / file.filename
+    file_path = save_dir / safe_name
     with open(file_path, "wb") as f:
         content = await file.read()
         f.write(content)
 
     # 记录元信息
-    _uploaded_docs[file.filename] = {
+    _uploaded_docs[safe_name] = {
         "path": str(file_path),
         "doc_type": doc_type,
+        "original_name": file.filename,
         "grade": grade if grade else None,
         "subject": subject if subject else None,
         "size": len(content),
@@ -174,7 +228,8 @@ async def upload_document(
 
     return {
         "status": "ok",
-        "filename": file.filename,
+        "filename": safe_name,
+        "original_name": file.filename,
         "doc_type": doc_type,
         "path": str(file_path),
         "size_bytes": len(content),
@@ -183,20 +238,42 @@ async def upload_document(
 
 @app.post("/api/chat", response_model=EduChatResponse)
 async def edu_chat(request: EduChatRequest):
-    """教育问答接口 —— 年级/学科/章节可过滤
+    """教育问答接口 —— 年级/学科/章节可过滤，支持会话历史
 
     示例请求:
     ```json
     {
         "question": "一元二次方程的求根公式是什么？",
         "grade": "初三",
-        "subject": "数学"
+        "subject": "数学",
+        "session_id": "abc123"
     }
     ```
     """
     try:
         pipeline = get_rag_pipeline(request.grade, request.subject)
-        result = pipeline.query(request.question)
+
+        # 如果有 session_id，加载历史上下文
+        history_context = ""
+        if request.session_id:
+            memory = get_short_memory()
+            history_context = await memory.build_prompt_context(
+                request.session_id
+            )
+
+        # 执行查询（注入历史上下文）
+        result = pipeline.query(request.question, history_context=history_context)
+
+        # 保存本轮对话到短期记忆
+        if request.session_id:
+            memory = get_short_memory()
+            await memory.save_context(
+                session_id=request.session_id,
+                user_msg=request.question,
+                agent_msg=result["answer"],
+                sources=result.get("sources", []),
+            )
+
         return EduChatResponse(
             answer=result["answer"],
             grade=result["grade"],
@@ -207,6 +284,91 @@ async def edu_chat(request: EduChatRequest):
         raise HTTPException(
             status_code=500,
             detail="问答服务异常: {}".format(str(e)),
+        )
+
+
+@app.get("/api/chat/history")
+async def get_chat_history(session_id: str = Query(..., description="会话 ID")):
+    """获取会话历史 —— 刷新页面后恢复聊天记录
+
+    返回最近 50 轮对话，前端用于恢复聊天界面。
+    """
+    try:
+        memory = get_short_memory()
+        raw = await memory.redis.lrange(
+            "chat:{}".format(session_id), -50, -1
+        )
+        history = []
+        for r in raw:
+            entry = json.loads(r)
+            history.append({
+                "role": "user",
+                "content": entry.get("user", ""),
+            })
+            history.append({
+                "role": "assistant",
+                "content": entry.get("agent", ""),
+                "sources": entry.get("sources", []),
+            })
+        return {"session_id": session_id, "messages": history}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail="获取历史失败: {}".format(str(e)),
+        )
+
+
+@app.post("/api/agent")
+async def agent_chat(request: AgentChatRequest):
+    """统一 Agent 接口 —— 自动识别意图 + 多步编排 + 记忆支持
+
+    示例请求:
+    ```json
+    {
+        "question": "帮我查勾股定理在哪一章，再出3道题",
+        "grade": "初三",
+        "subject": "数学",
+        "session_id": "abc123"
+    }
+    ```
+    """
+    import asyncio
+    from app.orchestrator_agent import OrchestratorAgent
+
+    try:
+        # 如果有 session_id，加载历史上下文
+        enriched_question = request.question
+        if request.session_id:
+            memory = get_short_memory()
+            history = await memory.build_prompt_context(request.session_id)
+            if history:
+                enriched_question = "{}\n\n当前新问题：{}".format(
+                    history.strip(), request.question
+                )
+
+        # 同步方法在线程池运行，不阻塞事件循环
+        loop = asyncio.get_running_loop()
+        agent = OrchestratorAgent()
+        result = await loop.run_in_executor(
+            None, agent.run,
+            enriched_question, request.grade,
+            request.subject, request.session_id or "",
+        )
+
+        # 保存本轮对话到短期记忆
+        if request.session_id:
+            memory = get_short_memory()
+            await memory.save_context(
+                session_id=request.session_id,
+                user_msg=request.question,
+                agent_msg=result["answer"],
+            )
+
+        return result
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail="Agent 服务异常: {}".format(str(e)),
         )
 
 
@@ -254,6 +416,97 @@ async def generate_exam(request: ExamGenRequest):
     }
 
 
+@app.post("/api/image/analyze")
+async def analyze_image(
+    file: UploadFile = File(...),
+    grade: str = Query(default="", description="年级（留空自动检测）"),
+    subject: str = Query(default="", description="学科（留空自动检测）"),
+):
+    """上传图片 → 自动识别内容
+
+    支持 JPG/PNG，使用百炼全模态模型提取图片中的文字和公式
+    """
+    from app.multimodal_processor import ImageProcessor
+
+    # 验证图片格式
+    allowed = {".jpg", ".jpeg", ".png", ".webp"}
+    ext = Path(file.filename).suffix.lower()
+    if ext not in allowed:
+        raise HTTPException(
+            status_code=400,
+            detail="不支持的图片格式: {}，支持: {}".format(
+                ext, ", ".join(allowed)
+            ),
+        )
+
+    # 保存临时文件
+    safe_name = _safe_filename(file.filename)
+    img_dir = Path(settings.DATA_DIR) / "temp"
+    img_dir.mkdir(parents=True, exist_ok=True)
+    img_path = str(img_dir / safe_name)
+    with open(img_path, "wb") as f:
+        f.write(await file.read())
+
+    try:
+        processor = ImageProcessor()
+        result = processor.extract_text(img_path)
+        return {"text": result, "filename": file.filename}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail="图片分析失败: {}".format(str(e)),
+        )
+    finally:
+        # 清理临时文件
+        if os.path.exists(img_path):
+            os.remove(img_path)
+
+
+@app.post("/api/image/solve")
+async def solve_math_photo(
+    file: UploadFile = File(...),
+    grade: str = Query(default="初三"),
+    subject: str = Query(default="数学"),
+):
+    """拍照解题：上传题目图片 → 自动识别 → Agent 解答
+
+    支持 JPG/PNG，自动识别题目并调用 Agent 解答
+    """
+    from app.multimodal_processor import ImageProcessor
+
+    allowed = {".jpg", ".jpeg", ".png", ".webp"}
+    ext = Path(file.filename).suffix.lower()
+    if ext not in allowed:
+        raise HTTPException(
+            status_code=400,
+            detail="不支持的图片格式: {}，支持: {}".format(
+                ext, ", ".join(allowed)
+            ),
+        )
+
+    safe_name = _safe_filename(file.filename)
+    img_dir = Path(settings.DATA_DIR) / "temp"
+    img_dir.mkdir(parents=True, exist_ok=True)
+    img_path = str(img_dir / safe_name)
+    with open(img_path, "wb") as f:
+        f.write(await file.read())
+
+    try:
+        processor = ImageProcessor()
+        result = processor.solve_math_problem(
+            img_path, grade=grade, subject=subject
+        )
+        return result
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail="拍照解题失败: {}".format(str(e)),
+        )
+    finally:
+        if os.path.exists(img_path):
+            os.remove(img_path)
+
+
 @app.get("/api/knowledge/graph")
 async def knowledge_graph(
     grade: str = Query(default="初三"),
@@ -290,7 +543,6 @@ async def analyze_wrong_answers(
     输入错题内容，系统自动在教材中检索对应知识点并给出复习建议。
     """
     from app.edu_features import StudyAnalyzer
-    from app.edu_rag_engine import EduVectorStore
 
     questions = [q.model_dump() for q in wrong_questions]
 
@@ -325,7 +577,11 @@ def _find_knowledge_point(query: str, grade: str, subject: str) -> str:
             api_key=settings.LLM_API_KEY,
             base_url=settings.LLM_API_BASE,
         )
-        prompt = "你是{0}的{1}老师。学生做错了这道题或知识点，请用5个字以内说出对应的教材知识点名称。只输出知识点名，不要解释。\n错题：{2}".format(grade, subject, query)
+        prompt = (
+            "你是{0}的{1}老师。学生做错了这道题或知识点，"
+            "请用5个字以内说出对应的教材知识点名称。"
+            "只输出知识点名，不要解释。\n错题：{2}"
+        ).format(grade, subject, query)
         resp = llm.invoke(prompt)
         kp = resp.content.strip().replace("知识点：", "").replace("：", "")
         if len(kp) < 2 or len(kp) > 30:
@@ -357,6 +613,7 @@ def _find_chapter_for_kp(kp: str, grade: str, subject: str) -> str:
         pass
     return ""
 
+
 @app.get("/api/documents")
 async def list_documents():
     """列出已上传的文档"""
@@ -379,9 +636,10 @@ async def list_documents():
 @app.post("/api/documents/delete")
 async def delete_document(filename: str):
     """删除指定文档"""
+    safe_name = _safe_filename(filename)
     data_dir = Path(settings.DATA_DIR)
     for subdir in ["textbooks", "courseware", "exam_banks"]:
-        file_path = data_dir / subdir / filename
+        file_path = data_dir / subdir / safe_name
         if file_path.exists() and file_path.is_file():
             file_path.unlink()
             return {"status": "ok", "message": "已删除: {}".format(filename)}
